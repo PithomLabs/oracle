@@ -1,0 +1,24 @@
+name: Reference Loop Test Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Reference loop run ID'
+        required: true
+        type: string
+
+jobs:
+  ref-loop-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate result
+        run: |
+          echo "ref-loop-${{ github.event.inputs.run_id }}-$(date +%s)" > result.txt
+          cat result.txt
+
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref-loop-result
+          path: result.txt

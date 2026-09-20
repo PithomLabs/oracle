@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ebp-research-packet/v1",
+  "title": "EBP Research Packet v1",
+  "description": "Canonical interchange contract for the Evidence-Based Protocol research packet. Structural constraints only; cross-object semantic checks are performed by Go validation code.",
+  "type": "object",
+  "required": ["schema_version", "role", "packet_id", "pack_ref", "agent", "beliefs", "evidence"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "ebp-research-packet/v1"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["work", "adversarial"]
+    },
+    "packet_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pack_ref": {
+      "type": "string",
+      "description": "Pack reference in format 'pack_id-version'"
+    },
+    "scenario_id": { "type": "string" },
+    "run_id": { "type": "string" },
+    "task_ref": { "type": "string" },
+    "project_ref": { "type": "string" },
+    "scenario_ref": { "type": "string" },
+    "scope": { "type": "string" },
+    "corpus_ref": { "type": "string" },
+    "agent": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "model": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "beliefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["local_id", "claim", "claim_type"],
+        "properties": {
+          "local_id": { "type": "string" },
+          "claim": { "type": "string", "minLength": 1 },
+          "claim_type": { "type": "string" },
+          "debt": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["local_id", "belief_ref", "provenance_class", "content_sha256"],
+        "properties": {
+          "local_id": { "type": "string" },
+          "belief_ref": { "type": "string" },
+          "provenance_class": { "type": "string" },
+          "content_sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+          "source_url": { "type": "string" },
+          "artifact_ref": { "type": "string" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["local_id", "from_ref", "to_ref", "kind"],
+        "properties": {
+          "local_id": { "type": "string" },
+          "from_ref": { "type": "string" },
+          "to_ref": { "type": "string" },
+          "kind": { "type": "string", "enum": ["derives", "contradicts"] }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["local_id", "title"],
+        "properties": {
+          "local_id": { "type": "string" },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "governance_ref": { "type": "string" }
+        }
+      }
+    }
+  }
+}

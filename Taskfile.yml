@@ -1,0 +1,42 @@
+version: '3'
+tasks:
+  dev:
+    desc: Start ARGUS (non-destructive)
+    cmds:
+      - go run ./cmd/argus serve
+
+  fresh:
+    desc: Reset database and start fresh (destructive)
+    cmds:
+      - go run ./cmd/argus reset
+      - go run ./cmd/argus serve
+
+  down:
+    desc: Stop managed CRDB (if any)
+    cmds:
+      - |
+        if [ -f .argus-pids/crdb.pid ]; then
+          kill $(cat .argus-pids/crdb.pid) 2>/dev/null || true
+          rm -f .argus-pids/crdb.pid
+        fi
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./...
+      - go test -race ./...
+
+  verify:
+    desc: Run verification
+    cmds:
+      - go run ./cmd/argus verify
+
+  lint:
+    desc: Run linter
+    cmds:
+      - go vet ./...
+
+  build:
+    desc: Build the binary
+    cmds:
+      - go build -o bin/argus ./cmd/argus/

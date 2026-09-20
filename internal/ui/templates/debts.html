@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head><title>ARGUS Debts</title></head>
+<body>
+<h1>Debts</h1>
+<table border="1">
+<tr><th>Belief ID</th><th>Claim</th><th>Remaining Debt</th><th>Can Promote</th><th>Action</th></tr>
+{{range .Beliefs}}
+<tr>
+<td>{{.BeliefID}}</td><td>{{.Claim}}</td><td>{{.RemainingDebt}}</td><td>{{.CanPromote}}</td>
+<td>{{if .CanPromote}}<a href="/promote?belief_id={{.BeliefID}}">Promote</a>{{else}}Blocked{{end}}</td>
+</tr>
+{{end}}
+</table>
+<h2>Proposed Retirements</h2>
+<table border="1">
+<tr><th>Belief ID</th><th>Debt Items</th><th>Proposer</th><th>Proposed At</th></tr>
+{{range .Retirements}}
+<tr>
+<td>{{.BeliefID}}</td><td>{{.DebtItems}}</td><td>{{.Proposer}}</td><td>{{.ProposedAt}}</td>
+</tr>
+{{end}}
+</table>
+</body>
+</html>

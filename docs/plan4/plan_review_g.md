@@ -1,0 +1,18 @@
+While stripping Conductor down to a bare control plane successfully eliminates orchestration bloat, this reduction pushes critical safety, cryptographic binding, and liveness guarantees into a void between the Agent and external authorities.
+
+**The Consequence Blind-Spot**
+Delegating effect classification entirely to external capability declarations leaves Conductor completely blind to execution risk. If Conductor only stores a passive `capability_ref`, it cannot enforce whether a task requires Solvent authorization. If a compromised, buggy, or hallucinating Agent claims a task referencing a destructive capability and executes it directly without consulting Solvent, Conductor will naively accept the completion signal. Conductor loses its ability to act as a control plane because it cannot enforce the authority boundary it relies on.
+
+**The Operation Identity Decoupling Vector**
+Deriving `operation_id` dynamically at execution time (`capability_ref + inputs + run_id`) without persisting or hashing it in Conductor creates a dangerous spoofing gap. Nothing cryptographically binds a claim in Conductor to an authorization request in Solvent. An Agent could claim Task A (`read-logs`), construct an unauthorized operation payload for `delete-database`, obtain or fake authorization, and report completion back to Task A. Because Conductor stores neither the canonical operation identity nor the authorization grant, Conductor and Solvent exist as uncoupled silos trusting the Agent as an honest broker.
+
+**Verification Theater and Soft State Transitions**
+Replacing explicit proof obligations with a passive `verification_ref` reduces quality control to self-assertion. If Conductor does not validate evidence associated with `verification_ref` before closing a task, state transitions (`status: COMPLETED`) happen purely on the Agent's word. If an Agent falsely marks a task complete, Conductor immediately unlocks the dependent `READY` frontier, propagating downstream failures across the system.
+
+**Dynamic `READY` Computation at Scale**
+Computing the `READY` frontier dynamically (`open ∧ dependencies_met ∧ unclaimed ∧ unblocked`) prevents state invalidation bugs, but introduces severe query scale issues. In deep workflows with hundreds of micro-tasks, checking dependency resolution across `parent/child`, `blocks_on`, and `discovered_from` relationships on every polling cycle requires recursive graph traversals. Under multi-agent polling (`Agent X, Y, Z` querying concurrently), this creates database lock contention and latency spikes unless a persistent index or cache is re-introduced.
+
+**Liveness Deficits: Orphan Subtasks and Stale Claims**
+Leaving task decomposition and lifecycle management entirely to external Agents creates an orphan crisis. If an Agent spawns subtasks ($A \rightarrow B, C, D$) and crashes, Conductor lacks the structural awareness to garbage-collect, time out, or cascade-cancel the abandoned sub-graph. Without explicit claim leases, heartbeats, or TTL mechanics built into the claim model, a crashed Agent leaves claimed tasks frozen in progress forever, permanently stalling dependent frontiers.
+
+This streamlined architecture rightly prevents Conductor from becoming an over-engineered workflow engine, but it overcorrects by shedding enforcement. Conductor does not need intelligence, but to function as a reliable control plane, it must enforce cryptographic binding between claims and operation proofs, validate state-transition gates before unlocking dependencies, and mandate claim leases for liveness guarantees.

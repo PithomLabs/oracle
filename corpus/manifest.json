@@ -1,0 +1,22 @@
+{
+  "manifest_version": "1.0.0",
+  "corpus_id": "bmist-poc-seed-v1",
+  "artifacts": [
+    {
+      "id": "bmist-seed-001",
+      "path": "docs/BMIST_POC_SEED.md",
+      "sha256": "a684cf93b043d0542eba5a59b059a18f15c4ec30ebbf9a39f0c5f03b33ffe4f7",
+      "provenance_class": "operator_asserted",
+      "description": "BM-IST POC seed document",
+      "stable_locator": "oracle/docs/BMIST_POC_SEED.md"
+    },
+    {
+      "id": "qwen-payoff-001",
+      "path": "docs/payoff_qwen.md",
+      "sha256": "1da86096ea0995bc9c3c848d31e062aabb7bb61fb6e729b4a7afbf8f4bce4dc0",
+      "provenance_class": "agent_derived",
+      "description": "Qwen-derived payoff analysis artifact",
+      "stable_locator": "oracle/docs/payoff_qwen.md"
+    }
+  ]
+}

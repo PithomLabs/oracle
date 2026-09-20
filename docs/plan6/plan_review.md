@@ -1,0 +1,33 @@
+Final-baseline review. The EBP compliance findings all landed correctly — atomic retirement with recorded deviation (C1), "Agent suggests / Human adjudicates / Solvent records" as the explicit rejection of §10 inference (C2), REOPEN with lineage-preserving `derives` edge (H1), attention-as-Conductor-state (H2), next-move-as-guidance (H3). The two-surface UI cut (Insights + Debts) is the right shrink, the priority-to-Conductor correction is right, and "the UI should never show 'AI verified debt'" is the compliance review's best sentence surviving into the baseline. **But this consolidation silently dropped four routed items from the RCP review — the consolidation-drift pattern, arriving at the final baseline, which is the worst possible place for it.** Plus one new Critical that only becomes visible now that OpenCode is the agent harness.
+
+## Critical
+
+**C1 — The agent tool surface is unspecified, and the default is dangerous.** Nothing in this baseline states *which MCP servers the OpenCode processes connect to*. The Solvent repo already ships `solvent-mcp` exposing `retire_debt`, `promote`, and the authority lifecycle directly. If the work or adversarial OpenCode process is configured with both the ARGUS adapter and the Solvent MCP — trivially likely, since both exist — the entire packet-only interface dies in configuration: the agent calls `solvent_retire_debt` directly, bypassing coordinator validation, `ebpInitialDebt` enforcement, and human adjudication, and the Debts screen's "human discharges" ceremony runs alongside an agent that no longer needs it. This is the v0.4 tool-surface/credential lesson (enforcement at the boundary, capability wins over role card) applied to the harness: **the plan must specify the exact MCP configuration per agent role — ARGUS adapter only (`get_context`, `submit_packet`), never Solvent-MCP, never Conductor write tools** — and the negative test belongs in Phase 8's acceptance: *agent attempts a direct Solvent mutation → tool not available in its surface.* One paragraph + one config check; without it, "agents produce packets" is true only as long as nobody configures the obvious thing.
+
+## High
+
+**H2 — Four routed RCP findings vanished in consolidation.** All four were accepted-routed one round ago; none appear here:
+
+1. **Inclusion algorithm (was C1):** `GET /v1/context/{task_id}` returns `epistemic` objects "related to" the task — related *how*? Deterministic reconstruction, the protocol's entire claim, is still unspecified. Carry the accepted resolution: v0.1 scope = full scenario projection; task-anchored edge closure deferred to v1.1.
+2. **Dead-end structural carrier (was C2):** the adversarial-agent view still promises "dead ends" with no definition, and the prose-carrier problem (agent-written "dead_end" text as navigational authority) is unresolved. Carry: dead end = REJECTED task whose governance_ref/decisions point at retracted/contradicted belief. Struck `cancelled`.
+3. **Cross-ledger consistency contract (was H2):** absent. One paragraph: RCP is eventually consistent across stores; response tags each fact's source; gaps are projection lag.
+4. **Artifact content retrieval (was H3):** absent — hashes without a resolution path stall the first fresh-agent run at "verified, unobtainable."
+
+These aren't new objections — they're the same four, and dropping them at the final cut is precisely why the disposition log exists. Restore them to the baseline text; each is a paragraph.
+
+**H3 — Pack retirement rules remain declared but unenforced — third carry.** Phase 2's `pack.json` maps each debt item to required evidence classes; Phase 7's RETIRE_DEBT executes on human click with no class check anywhere. The Debts screen even *displays* "PROPOSED DISCHARGE" — implying rule-following the system doesn't perform. Final decision needed, either is fine: coordinator validates offered-evidence-class against the pack rule before executing retirement (mechanical, one validation), or the rules are explicitly advisory for Phase 8 and retirement is human-discretionary — recorded as such. What's not fine is the current state: rules that look normative and bind nothing.
+
+## Medium
+
+- **Insights "priority" tiers have no derivation.** Conductor correctly owns attention — but the frozen Conductor model has no priority field either. Where do HIGH/MEDIUM/LOW come from? Either a stated mechanical derivation (debt count, blocked-state, age) or "manual task ordering, POC-scoped." The board currently displays tiers no component defines.
+- **"Dead Ends: 2" on Insights** — same root as H2-2: define the structural derivation before the counter can exist.
+- **Diagram error:** the final architecture shows SOLVENT twice and implies UI→Solvent directly; text correctly says UI→Coordinator→Solvent ("invokes the existing Solvent pathway" *through the coordinator*). Fix the diagram or the first implementer wires the write path wrong.
+- **Name pinning:** envelope says `argus-context/v1`, protocol is called RCP — one name in the frozen vocabulary, referenced from the other. Cosmetic now, confusing at conformance time.
+
+## What survives — and it's nearly everything
+
+The final shape is genuinely right and remarkably small: RCP as one coordinator read endpoint over two frozen ledgers; MCP as transport, API as contract; EBP as operating law with the workflow now *stricter* than its own protocol in the three places that matter (attributed retirement, no inference, human-gated faithfulness); a two-screen UI that is debt-discharge and situational awareness and nothing else; acceptance criteria that test the architecture's actual claims (fresh-agent reconstruction, refusal-before-promotion, Solvent-decides-the-gate). The §8 statement — the human can *request* promotion but cannot *declare* one — is the whole architecture in one sentence, and it's now load-bearing in the acceptance list.
+
+## Verdict
+
+**Approve as the final Phase 8 baseline, conditional on C1 (tool-surface specification + negative test) and H2 (restore the four carried paragraphs).** H3 needs its one-line decision, not more discussion. With those, stop reviewing and implement: the plan now has a frozen kernel with doctrine-restoring provenance, a two-ledger substrate, a two-protocol coordinator, a compliance-verified epistemic law, and acceptance criteria that falsify themselves if the architecture fails. The remaining findings are a day of spec text. The interesting verdicts are all behind us — the next honest output is the run's.

@@ -1,0 +1,43 @@
+{
+  "workflow_spec_version": "v0.3",
+  "role_boundary_matrix_version": "v0.5",
+  "operation_identity_rule": "deploy:owner/repo:workflow:ref:run_id",
+  "declaration_owner": "reference-loop",
+  "declaration_version": "v0.1",
+  "pass_criteria": [
+    "TASK_CREATED",
+    "TASK_CLAIMED",
+    "PROPOSAL_CREATED",
+    "AUTHORIZED",
+    "EXECUTION_ATTEMPTED",
+    "EFFECT_CONFIRMED_OR_SIMULATED",
+    "RESULT_OBSERVED",
+    "CONDUCTOR_UPDATED",
+    "AGENT_CONTINUED"
+  ],
+  "sandbox_rule": "Sandboxing may neutralize the final external effect, but it must NOT bypass authorization verification, exact operation binding, or fail-closed enforcement.",
+  "failure_taxonomy": [
+    "implementation_defect",
+    "integration_defect",
+    "executor_defect",
+    "deployment_environment_defect",
+    "specification_defect",
+    "genuinely_new_security_property"
+  ],
+  "finding_arbiter": "human_owner",
+  "bmist_status": "deferred",
+  "pending_work": [
+    "wrong_operation",
+    "missing_authorization",
+    "stale_authorization",
+    "verification_unavailable",
+    "declaration_version_mismatch",
+    "replay_duplicate",
+    "execution_failure",
+    "ambiguous_outcome",
+    "termination_revocation",
+    "conductor_cancellation",
+    "agent_misinterpretation",
+    "cross_implementation_operation_identity"
+  ]
+}

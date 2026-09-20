@@ -1,0 +1,18 @@
+{
+  "schema_version": "ebp-research-packet/v1",
+  "role": "work",
+  "packet_id": "test-002",
+  "pack_ref": "bmist-1.0.0",
+  "agent": { "id": "agent-001" },
+  "beliefs": [
+    { "local_id": "b1", "claim": "test", "claim_type": "unknown_type" }
+  ],
+  "evidence": [
+    {
+      "local_id": "e1",
+      "belief_ref": "local:b1",
+      "provenance_class": "reproducible_artifact",
+      "content_sha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+    }
+  ]
+}

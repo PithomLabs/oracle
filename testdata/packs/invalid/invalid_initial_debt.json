@@ -1,0 +1,14 @@
+{
+  "pack_id": "test",
+  "version": "1.0.0",
+  "name": "Invalid Initial Debt",
+  "description": "Test",
+  "claim_types": ["derived"],
+  "evidence_classes": ["reproducible_artifact"],
+  "debt_vocabulary": ["needMap"],
+  "initial_debt": ["needMap", "needBogus"],
+  "retirement_rules": {"needMap": {"evidence_class": "reproducible_artifact", "rule": "map_check"}},
+  "falsifiers": ["counterexample"],
+  "consequential_actions": [],
+  "human_gated_transitions": ["faithfulness_review", "scope_clarification", "obstruction_assessment"]
+}

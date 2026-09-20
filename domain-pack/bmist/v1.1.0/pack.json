@@ -1,0 +1,95 @@
+{
+  "pack_id": "bmist",
+  "version": "1.1.0",
+  "name": "BM-IST-AS Research Domain Pack",
+  "description": "BM + IST + Asymptotic Safety research methodology",
+  "claim_types": [
+    "derived",
+    "accommodated",
+    "postulated"
+  ],
+  "evidence_classes": [
+    "reproducible_artifact",
+    "operator_asserted"
+  ],
+  "debt_vocabulary": [
+    "needMap",
+    "needInvariant",
+    "needToyCheck",
+    "needNullModel",
+    "needObstruction",
+    "needFaithfulnessReview",
+    "needInitialCondition",
+    "needRegularity"
+  ],
+  "initial_debt": [
+    "needMap",
+    "needInvariant",
+    "needToyCheck",
+    "needNullModel",
+    "needObstruction",
+    "needFaithfulnessReview",
+    "needInitialCondition",
+    "needRegularity"
+  ],
+  "retirement_rules": {
+    "needMap": {
+      "evidence_class": "reproducible_artifact",
+      "rule": "map_check"
+    },
+    "needInvariant": {
+      "evidence_class": "reproducible_artifact",
+      "rule": "invariant_check"
+    },
+    "needToyCheck": {
+      "evidence_class": "reproducible_artifact",
+      "rule": "toy_model_check"
+    },
+    "needNullModel": {
+      "evidence_class": "operator_asserted",
+      "rule": "scope_clarification"
+    },
+    "needObstruction": {
+      "evidence_class": "reproducible_artifact",
+      "rule": "obstruction_construction"
+    },
+    "needFaithfulnessReview": {
+      "evidence_class": "operator_asserted",
+      "rule": "faithfulness_review"
+    },
+    "needInitialCondition": {
+      "evidence_class": "operator_asserted",
+      "rule": "preparation_accounting"
+    },
+    "needRegularity": {
+      "evidence_class": "reproducible_artifact",
+      "rule": "regularity_audit"
+    }
+  },
+  "falsifiers": [
+    "counterexample",
+    "contradiction",
+    "missing_evidence",
+    "alternative_explanation"
+  ],
+  "consequential_actions": [
+    {
+      "action": "publish_claim",
+      "requires": "promoted",
+      "gates": [
+        "faithfulness_review"
+      ]
+    }
+  ],
+  "human_gated_transitions": [
+    "faithfulness_review",
+    "scope_clarification",
+    "obstruction_assessment"
+  ],
+  "verifier_specs": [
+    {
+      "verifier_id": "physics-v1",
+      "min_version": "0.1.0"
+    }
+  ]
+}

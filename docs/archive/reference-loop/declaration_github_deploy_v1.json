@@ -1,0 +1,76 @@
+{
+  "authorization_evidence_requirements": {
+    "fields": [
+      "target_id",
+      "snapshot_id",
+      "intent_id",
+      "intent_state"
+    ],
+    "freshness_requirement": "re-evaluated at execution boundary",
+    "minimum_validity": "intent_state == 'live' at claim time",
+    "source": "Solvent kernel.AuthorizeAndCreateIntent"
+  },
+  "capability_ref": "github:ibmendoza/reference-loop-test:deploy",
+  "declaration_owner": "reference-loop",
+  "declaration_version": "v1.0.0",
+  "effect_capable": true,
+  "effective_reference": ".github/workflows/ref-loop.yml@main",
+  "execution_outcome_model": {
+    "ambiguous_handling": "do not retry automatically; log and leave for operator",
+    "source": "GitHub Actions API",
+    "states": [
+      "EXECUTION_ATTEMPTED",
+      "EFFECT_CONFIRMED",
+      "RESULT_OBSERVED",
+      "AMBIGUOUS"
+    ]
+  },
+  "operation_class": "DeployWorkflow",
+  "operation_identity_definition": {
+    "canonicalization": "colon-separated string equality",
+    "fields": {
+      "execution_run_id": {
+        "description": "immutable Reference Loop correlation identity",
+        "effect_relevant": true
+      },
+      "operation": {
+        "effect_relevant": true,
+        "fixed": "deploy"
+      },
+      "ref": {
+        "effect_relevant": true
+      },
+      "repo": {
+        "effect_relevant": true
+      },
+      "workflow": {
+        "effect_relevant": true
+      }
+    },
+    "format": "deploy:repo:workflow:ref:execution_run_id",
+    "immaterial_parameters": []
+  },
+  "reconciliation": {
+    "automatic_reconciliation": false,
+    "mechanism": "manual inspection of GitHub Actions runs + Solvent audit log",
+    "owner": "human operator"
+  },
+  "replay_idempotency": {
+    "behavior": "single-use",
+    "declare_exactly_once": true,
+    "duplicate_rejection": "ClaimIntent CAS rejects when state != 'live'"
+  },
+  "validity_model": {
+    "intent_transitions": [
+      "live",
+      "executing",
+      "executed"
+    ],
+    "invalidation": [
+      "belief_retraction",
+      "target_revocation"
+    ],
+    "type": "single-use-intent"
+  },
+  "content_hash": "sha256:88cfe622207fab3dd06bd7ee00f9c1882b1ba3aaf1fa6bd4623e3d4925d6f5c5"
+}

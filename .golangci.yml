@@ -1,0 +1,23 @@
+version: "2"
+
+linters:
+  enable:
+    - depguard
+
+linters-settings:
+  depguard:
+    rules:
+      mcp_boundary:
+        files:
+          - "**/internal/mcp/**"
+        deny:
+          - pkg: "github.com/PithomLabs/oracle/internal/epistemic"
+            desc: "MCP must not directly access epistemic kernel"
+          - pkg: "github.com/PithomLabs/solvent/kernel"
+            desc: "MCP must not import Solvent kernel directly"
+      app_boundary:
+        files:
+          - "**/internal/application/**"
+        deny:
+          - pkg: "github.com/PithomLabs/oracle/internal/mcp"
+            desc: "Application must not import MCP package"

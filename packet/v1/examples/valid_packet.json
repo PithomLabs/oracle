@@ -1,0 +1,42 @@
+{
+  "schema_version": "ebp-research-packet/v1",
+  "role": "work",
+  "packet_id": "example-valid-001",
+  "pack_ref": "bmist-1.0.0",
+  "agent": {
+    "id": "agent-001",
+    "model": "gpt-4",
+    "role": "researcher"
+  },
+  "beliefs": [
+    {
+      "local_id": "b1",
+      "claim": "Fisher-rigidity holds for 2D configurations with boundary",
+      "claim_type": "derived",
+      "debt": ["needMap", "needInvariant"]
+    }
+  ],
+  "evidence": [
+    {
+      "local_id": "e1",
+      "belief_ref": "local:b1",
+      "provenance_class": "reproducible_artifact",
+      "content_sha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+    }
+  ],
+  "edges": [
+    {
+      "local_id": "edge1",
+      "from_ref": "local:b1",
+      "to_ref": "local:b1",
+      "kind": "derives"
+    }
+  ],
+  "tasks": [
+    {
+      "local_id": "t1",
+      "title": "Run toy model check",
+      "description": "Verify rigidity for n=3 toy model"
+    }
+  ]
+}

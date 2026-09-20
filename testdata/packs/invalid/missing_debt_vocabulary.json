@@ -1,0 +1,14 @@
+{
+  "pack_id": "test",
+  "version": "1.0.0",
+  "name": "Missing Debt Vocabulary",
+  "description": "Test",
+  "claim_types": ["derived"],
+  "evidence_classes": ["reproducible_artifact"],
+  "debt_vocabulary": [],
+  "initial_debt": [],
+  "retirement_rules": {},
+  "falsifiers": ["counterexample"],
+  "consequential_actions": [],
+  "human_gated_transitions": ["faithfulness_review", "scope_clarification", "obstruction_assessment"]
+}
