@@ -192,6 +192,42 @@ func GetAllBeliefs(ctx context.Context, db *sql.DB) ([]BeliefView, error) {
 	return beliefs, nil
 }
 
+
+
+// PacketSubmissionView is a read-only projection of a packet_submission row.
+type PacketSubmissionView struct {
+	PacketID    string `json:"packet_id"`
+	ScenarioID  string `json:"scenario_id"`
+	AgentID     string `json:"agent_id"`
+	Role        string `json:"role"`
+	Harness     string `json:"harness"`
+	Model       string `json:"model"`
+	SubmittedAt string `json:"submitted_at"`
+}
+
+// GetSubmissionsForScenario returns packet submissions for a specific scenario.
+func GetSubmissionsForScenario(ctx context.Context, db *sql.DB, scenarioID string) ([]PacketSubmissionView, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT packet_id, scenario_id, agent_id, role, harness, model, submitted_at
+		 FROM packet_submission WHERE scenario_id = $1::UUID
+		 ORDER BY submitted_at DESC`, scenarioID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var subs []PacketSubmissionView
+	for rows.Next() {
+		var s PacketSubmissionView
+		if err := rows.Scan(&s.PacketID, &s.ScenarioID, &s.AgentID, &s.Role, &s.Harness, &s.Model, &s.SubmittedAt); err != nil {
+			return nil, err
+		}
+		subs = append(subs, s)
+	}
+	if subs == nil {
+		subs = []PacketSubmissionView{}
+	}
+	return subs, rows.Err()
+}
 // BeliefExplain is a per-belief human-readable explanation derived from a Snapshot.
 type BeliefExplain struct {
 	BeliefID                     string       `json:"belief_id"`

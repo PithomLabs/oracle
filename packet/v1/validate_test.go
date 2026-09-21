@@ -32,7 +32,7 @@ func validPacket() *Packet {
 		Role:          RoleWork,
 		PacketID:      "test-packet-001",
 		PackRef:       "bmist-1.0.0",
-		Agent:         Agent{ID: "test-agent"},
+		Agent:         Agent{ID: "test-agent", Role: RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []Belief{
 			{LocalID: "b1", Claim: "Fisher-rigidity holds for 2D", ClaimType: "derived", Debt: []string{"needMap"}},
 		},
@@ -184,7 +184,54 @@ func TestValidateAdversarialRole(t *testing.T) {
 	registry := newTestRegistry(t)
 	pkt := validPacket()
 	pkt.Role = RoleAdversarial
+	pkt.Agent.Role = RoleAdversarial
 	if err := Validate(pkt, registry); err != nil {
 		t.Errorf("adversarial role rejected: %v", err)
+	}
+}
+
+func TestValidateMissingAgentID(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Agent.ID = ""
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("missing agent.id accepted")
+	}
+}
+
+func TestValidateMissingAgentRole(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Agent.Role = ""
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("missing agent.role accepted")
+	}
+}
+
+func TestValidateMissingAgentHarness(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Agent.Harness = ""
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("missing agent.harness accepted")
+	}
+}
+
+func TestValidateMissingAgentModel(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Agent.Model = ""
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("missing agent.model accepted")
+	}
+}
+
+func TestValidateAgentRoleMismatch(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Role = RoleWork
+	pkt.Agent.Role = RoleAdversarial
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("agent.role != packet.role accepted")
 	}
 }

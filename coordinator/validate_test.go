@@ -43,7 +43,7 @@ func TestValidatePacketValid(t *testing.T) {
 		Role:          packetv1.RoleWork,
 		PacketID:      "test-001",
 		PackRef:       "bmist-1.0.0",
-		Agent:         packetv1.Agent{ID: "test-agent"},
+		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "test claim", ClaimType: "derived"},
 		},

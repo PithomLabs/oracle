@@ -30,6 +30,11 @@ func Validate(pkt *Packet, registry *domainpack.PackRegistry) error {
 		return fmt.Errorf("invalid role: %s (must be %q or %q)", pkt.Role, RoleWork, RoleAdversarial)
 	}
 
+	// 3.5. agent identity validation
+	if err := validateAgent(pkt); err != nil {
+		return err
+	}
+
 	// 4. pack_ref resolves through registry
 	packID, packVersion := parsePackRef(pkt.PackRef)
 	_, err := registry.Get(packID, packVersion)
@@ -62,6 +67,27 @@ func Validate(pkt *Packet, registry *domainpack.PackRegistry) error {
 		return err
 	}
 
+	return nil
+}
+
+
+// validateAgent checks agent identity fields are present and consistent.
+func validateAgent(pkt *Packet) error {
+	if pkt.Agent.ID == "" {
+		return fmt.Errorf("agent.id is required")
+	}
+	if pkt.Agent.Role == "" {
+		return fmt.Errorf("agent.role is required")
+	}
+	if pkt.Agent.Harness == "" {
+		return fmt.Errorf("agent.harness is required")
+	}
+	if pkt.Agent.Model == "" {
+		return fmt.Errorf("agent.model is required")
+	}
+	if pkt.Agent.Role != pkt.Role {
+		return fmt.Errorf("agent.role %q must equal packet.role %q", pkt.Agent.Role, pkt.Role)
+	}
 	return nil
 }
 

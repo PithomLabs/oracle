@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/PithomLabs/oracle/internal/epistemic"
 	"github.com/PithomLabs/oracle/internal/work"
 	"github.com/PithomLabs/oracle/verifier"
@@ -485,19 +486,40 @@ func (a *App) Persist(ctx context.Context, tx TxExecutor, pkt *packetv1.Packet) 
 		return nil, fmt.Errorf("insert idempotency: %w", err)
 	}
 
+	// 6. Persist packet submission provenance (agent identity).
+	// TaskRef handling: empty → NULL, valid UUID → store, invalid UUID → reject.
+	var taskRef sql.NullString
+	if pkt.TaskRef != "" {
+		if _, err := uuid.Parse(pkt.TaskRef); err != nil {
+			return nil, fmt.Errorf("invalid task_ref: %w", err)
+		}
+		taskRef = sql.NullString{String: pkt.TaskRef, Valid: true}
+	}
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO packet_submission
+			 (packet_id, scenario_id, task_id, agent_id, role, harness, model, content_sha256)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 ON CONFLICT (packet_id) DO NOTHING`,
+		pkt.PacketID, pkt.ScenarioID, taskRef,
+		pkt.Agent.ID, pkt.Agent.Role, pkt.Agent.Harness, pkt.Agent.Model, hash)
+	if err != nil {
+		return nil, fmt.Errorf("insert packet submission: %w", err)
+	}
+
 	return result, nil
 }
 
 // ---- Context Assembly ----
 
-// Dashboard is the Trust UI dashboard view — all tasks and all beliefs.
+// Dashboard is the Trust UI dashboard view — all tasks, all beliefs, and recent submissions.
 type Dashboard struct {
-	Tasks   []*work.Task              `json:"tasks"`
-	Beliefs []epistemic.BeliefView    `json:"beliefs"`
+	Tasks       []*work.Task                    `json:"tasks"`
+	Beliefs     []epistemic.BeliefView          `json:"beliefs"`
+	Submissions []epistemic.PacketSubmissionView `json:"submissions"`
 }
 
-// GetDashboard returns all tasks and beliefs for the Trust UI dashboard.
-func (a *App) GetDashboard(ctx context.Context) (*Dashboard, error) {
+// GetDashboard returns all tasks, beliefs, and recent submissions for the Trust UI dashboard.
+func (a *App) GetDashboard(ctx context.Context, scenarioID string) (*Dashboard, error) {
 	tasks, err := a.workStore.ListAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
@@ -506,9 +528,20 @@ func (a *App) GetDashboard(ctx context.Context) (*Dashboard, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get beliefs: %w", err)
 	}
+	var submissions []epistemic.PacketSubmissionView
+	if scenarioID != "" {
+		subs, err := epistemic.GetSubmissionsForScenario(ctx, a.db, scenarioID)
+		if err == nil {
+			submissions = subs
+		}
+	}
+	if submissions == nil {
+		submissions = []epistemic.PacketSubmissionView{}
+	}
 	return &Dashboard{
-		Tasks:   tasks,
-		Beliefs: beliefs,
+		Tasks:       tasks,
+		Beliefs:     beliefs,
+		Submissions: submissions,
 	}, nil
 }
 

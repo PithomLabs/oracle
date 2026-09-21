@@ -93,6 +93,7 @@ func buildTestPacket(scenarioID string) *packetv1.Packet {
 		PacketID:      "test-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "first claim", ClaimType: "derived"},
 			{LocalID: "b2", Claim: "second claim", ClaimType: "derived"},
@@ -211,6 +212,7 @@ func TestAgentRetirementDoesNotDischargeDebt(t *testing.T) {
 		PacketID:      "ret-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "debt belief", ClaimType: "derived", Debt: []string{"needMap"}},
 		},
@@ -254,6 +256,7 @@ func TestPromoteWithOpenDebtRefused(t *testing.T) {
 		PacketID:      "prom-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "unpaid debt belief", ClaimType: "derived", Debt: []string{"needMap"}},
 		},
@@ -297,6 +300,7 @@ func TestPromoteRetractedBeliefRefused(t *testing.T) {
 		PacketID:      "ret-prom-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "retractable belief", ClaimType: "derived"},
 		},
@@ -449,6 +453,7 @@ func TestVerifierInputBinding(t *testing.T) {
 		PacketID:      "bind-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{
 				LocalID:   "b1",
@@ -502,6 +507,7 @@ func TestVerifierInputBindingMismatch(t *testing.T) {
 		PacketID:      "mismatch-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{
 				LocalID:   "b1",
@@ -566,6 +572,7 @@ func TestVerifierSpecEnforcement(t *testing.T) {
 		PacketID:      "enforce-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Evidence: []packetv1.Evidence{
 			{
 				LocalID:         "e1",
@@ -600,6 +607,7 @@ func TestAdversarialContradictionVisible(t *testing.T) {
 		PacketID:      "work-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "contested claim", ClaimType: "derived"},
 		},
@@ -621,6 +629,7 @@ func TestAdversarialContradictionVisible(t *testing.T) {
 		PacketID:      "adv-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "adv1", Claim: "adversarial refutation", ClaimType: "derived"},
 		},
@@ -677,6 +686,7 @@ func TestRetractionCancelsLinkedTask(t *testing.T) {
 		PacketID:      "retract-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "retractable belief", ClaimType: "derived"},
 		},
@@ -740,6 +750,7 @@ func TestAgentEdgesDoNotRetract(t *testing.T) {
 		PacketID:      "edge-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "edge test belief", ClaimType: "derived"},
 		},
@@ -763,6 +774,7 @@ func TestAgentEdgesDoNotRetract(t *testing.T) {
 		PacketID:      "adv-edge-pkt-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b2", Claim: "adversarial claim", ClaimType: "derived"},
 		},
@@ -954,6 +966,7 @@ func splitStatements(sqlText string) []string {
 func TestContentHashDifferentEvidenceProducesDifferentHash(t *testing.T) {
 	pkt1 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "aaa"},
@@ -961,6 +974,7 @@ func TestContentHashDifferentEvidenceProducesDifferentHash(t *testing.T) {
 	}
 	pkt2 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "bbb"},
@@ -976,6 +990,7 @@ func TestContentHashDifferentEvidenceProducesDifferentHash(t *testing.T) {
 func TestContentHashDifferentEdgesProducesDifferentHash(t *testing.T) {
 	pkt1 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
 			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
@@ -986,6 +1001,7 @@ func TestContentHashDifferentEdgesProducesDifferentHash(t *testing.T) {
 	}
 	pkt2 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
 			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
@@ -1004,6 +1020,7 @@ func TestContentHashDifferentEdgesProducesDifferentHash(t *testing.T) {
 func TestContentHashCanonicalOrdering(t *testing.T) {
 	pkt1 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
 			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
@@ -1011,6 +1028,7 @@ func TestContentHashCanonicalOrdering(t *testing.T) {
 	}
 	pkt2 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
 			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
@@ -1026,10 +1044,12 @@ func TestContentHashCanonicalOrdering(t *testing.T) {
 func TestContentHashDifferentPacketIDDifferentHash(t *testing.T) {
 	pkt1 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
 	}
 	pkt2 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p2", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
 	}
 	h1 := contentHash(pkt1)
@@ -1127,6 +1147,7 @@ func TestOperatorAssertedRejectedFromAgent(t *testing.T) {
 	app := New(nil) // nil DB — we won't reach DB queries
 	pkt := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "operator_asserted", ContentSHA256: "abc123"},
@@ -1146,6 +1167,7 @@ func TestReproducibleArtifactRequiresArtifactRef(t *testing.T) {
 	app := New(nil)
 	pkt := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "abc123"},
@@ -1158,5 +1180,217 @@ func TestReproducibleArtifactRequiresArtifactRef(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "artifact_ref") {
 		t.Errorf("error should mention artifact_ref, got: %v", err)
+	}
+}
+
+
+func TestAgentCannotPromote(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	app := New(db)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000090"
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "agent-promote-test-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "Agent-captured claim", ClaimType: "derived"},
+		},
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	_, err = app.Persist(ctx, tx, pkt)
+	if err != nil {
+		t.Fatalf("persist: %v", err)
+	}
+	tx.Commit()
+
+	beliefID := EntityID(scenarioID, "belief", "Agent-captured claim")
+
+	// Agent tries to promote via SubmitDecision — should fail (no authority path for agents)
+	err = app.SubmitDecision(ctx, &AuthenticatedDecisionCommand{
+		Type:       "promote",
+		ScenarioID: scenarioID,
+		BeliefID:   beliefID,
+	})
+	if err == nil {
+		t.Error("agent was able to promote belief — authority isolation violated")
+	}
+	t.Logf("promote correctly refused: %v", err)
+}
+
+func TestAgentCannotDischargeDebt(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	app := New(db)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000091"
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "agent-discharge-test-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "Claim with debt", ClaimType: "derived", Debt: []string{"needMap"}},
+		},
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	_, err = app.Persist(ctx, tx, pkt)
+	if err != nil {
+		t.Fatalf("persist: %v", err)
+	}
+	tx.Commit()
+
+	beliefID := EntityID(scenarioID, "belief", "Claim with debt")
+
+	// Agent submits a retirement evidence packet — debt should NOT be discharged
+	retPkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "agent-retire-test-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "Claim with debt", ClaimType: "derived"},
+		},
+		Evidence: []packetv1.Evidence{
+			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"},
+		},
+	}
+
+	tx2, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	_, err = app.Persist(ctx, tx2, retPkt)
+	if err != nil {
+		t.Fatalf("persist retirement: %v", err)
+	}
+	tx2.Commit()
+
+	// Verify debt still exists (agent cannot discharge)
+	var debtJSON string
+	err = db.QueryRowContext(ctx,
+		`SELECT debt FROM belief WHERE id = $1`, beliefID).Scan(&debtJSON)
+	if err != nil {
+		t.Fatalf("query belief debt: %v", err)
+	}
+	if debtJSON == "" || debtJSON == "[]" || debtJSON == "null" {
+		t.Fatalf("expected debt on belief, got: %s", debtJSON)
+	}
+	t.Logf("belief has debt: %s (correct — agent cannot discharge)", debtJSON)
+}
+
+func TestAgentCannotRetractBelief(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	app := New(db)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000092"
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "agent-retract-test-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "Claim to retract", ClaimType: "derived"},
+		},
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	_, err = app.Persist(ctx, tx, pkt)
+	if err != nil {
+		t.Fatalf("persist: %v", err)
+	}
+	tx.Commit()
+
+	beliefID := EntityID(scenarioID, "belief", "Claim to retract")
+
+	// Agent tries to retract via SubmitDecision — should fail (no authority path for agents)
+	err = app.SubmitDecision(ctx, &AuthenticatedDecisionCommand{
+		Type:       "retract",
+		ScenarioID: scenarioID,
+		BeliefID:   beliefID,
+	})
+	if err == nil {
+		t.Error("agent was able to retract belief — authority isolation violated")
+	}
+	t.Logf("retract correctly refused: %v", err)
+}
+
+
+func TestAgentIdentityPersistedInSubmission(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	app := New(db)
+	ctx := context.Background()
+	scenarioID := "00000000-0000-0000-0000-000000000099"
+
+	// Create packet with explicit agent identity
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "agent-propagation-test-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent: packetv1.Agent{
+			ID:      "propagation-agent-001",
+			Role:    packetv1.RoleWork,
+			Harness: "OpenCode",
+			Model:   "test-model-v1",
+		},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "propagation test claim", ClaimType: "derived"},
+		},
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	_, err = app.Persist(ctx, tx, pkt)
+	if err != nil {
+		t.Fatalf("persist: %v", err)
+	}
+	tx.Commit()
+
+	// Verify agent identity was persisted
+	var agentID, harness, model string
+	err = db.QueryRowContext(ctx,
+		`SELECT agent_id, harness, model FROM packet_submission WHERE packet_id = $1`,
+		pkt.PacketID).Scan(&agentID, &harness, &model)
+	if err != nil {
+		t.Fatalf("agent identity not persisted: %v", err)
+	}
+	if agentID != "propagation-agent-001" {
+		t.Errorf("agent_id = %q, want %q", agentID, "propagation-agent-001")
+	}
+	if harness != "OpenCode" {
+		t.Errorf("harness = %q, want %q", harness, "OpenCode")
+	}
+	if model != "test-model-v1" {
+		t.Errorf("model = %q, want %q", model, "test-model-v1")
 	}
 }

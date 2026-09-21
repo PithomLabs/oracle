@@ -112,15 +112,17 @@ func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) HandleInsights(w http.ResponseWriter, r *http.Request) {
-	dash, err := s.app.GetDashboard(r.Context())
+	scenarioID := r.URL.Query().Get("scenario_id")
+	dash, err := s.app.GetDashboard(r.Context(), scenarioID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load dashboard: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	data := map[string]interface{}{
-		"Tasks":   dash.Tasks,
-		"Beliefs": dash.Beliefs,
+		"Tasks":       dash.Tasks,
+		"Beliefs":     dash.Beliefs,
+		"Submissions": dash.Submissions,
 	}
 
 	var buf bytes.Buffer
@@ -134,7 +136,8 @@ func (s *Server) HandleInsights(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) HandleDebts(w http.ResponseWriter, r *http.Request) {
-	dash, err := s.app.GetDashboard(r.Context())
+	scenarioID := r.URL.Query().Get("scenario_id")
+	dash, err := s.app.GetDashboard(r.Context(), scenarioID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load dashboard: %v", err), http.StatusInternalServerError)
 		return

@@ -165,6 +165,7 @@ func TestFullIntegration(t *testing.T) {
 		PacketID:      "integ-work-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "work-001", Role: packetv1.RoleWork, Harness: "OpenCode", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b1", Claim: "integration belief", ClaimType: "derived", Debt: []string{"needMap"}},
 		},
@@ -321,6 +322,7 @@ func TestFullIntegration(t *testing.T) {
 		PacketID:      "integ-work-002",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "work-002", Role: packetv1.RoleWork, Harness: "OpenCode", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "b2", Claim: "second belief", ClaimType: "derived"},
 		},
@@ -342,6 +344,7 @@ func TestFullIntegration(t *testing.T) {
 		PacketID:      "integ-adv-001",
 		PackRef:       "bmist@1.0.0",
 		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "adv-001", Role: packetv1.RoleAdversarial, Harness: "OpenCode", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "adv1", Claim: "adversarial refutation", ClaimType: "derived"},
 		},

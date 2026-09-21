@@ -21,10 +21,13 @@ type Packet struct {
 }
 
 // Agent identifies the creator of the packet.
+// All fields are required. Agent identity is provenance/observability metadata only,
+// never an authority credential.
 type Agent struct {
-	ID    string `json:"id,omitempty"`
-	Model string `json:"model,omitempty"`
-	Role  string `json:"role,omitempty"`
+	ID      string `json:"id"`
+	Role    string `json:"role"`
+	Harness string `json:"harness"`
+	Model   string `json:"model"`
 }
 
 // Belief is an atomic epistemic object within the packet.

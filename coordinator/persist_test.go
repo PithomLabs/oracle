@@ -51,6 +51,7 @@ func TestSubmitPacket_BeliefsPersisted(t *testing.T) {
 		PacketID:      "test-packet-001",
 		PackRef:       "bmist-1.0.0",
 		ScenarioID:    "track-g0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "l1", Claim: "L1 is true", ClaimType: "derived"},
 			{LocalID: "l2", Claim: "L2 is true", ClaimType: "derived"},
@@ -82,6 +83,7 @@ func TestSubmitPacket_DuplicateSubmitIdempotent(t *testing.T) {
 		PacketID:      "test-packet-002",
 		PackRef:       "bmist-1.0.0",
 		ScenarioID:    "track-g0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "l1", Claim: "L1 is true", ClaimType: "derived"},
 		},
@@ -112,6 +114,7 @@ func TestSubmitPacket_CrossScenarioNoDedup(t *testing.T) {
 		PacketID:      "test-packet-003",
 		PackRef:       "bmist-1.0.0",
 		ScenarioID:    "track-g0",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "l1", Claim: "L1 is true", ClaimType: "derived"},
 		},
@@ -124,6 +127,7 @@ func TestSubmitPacket_CrossScenarioNoDedup(t *testing.T) {
 		PacketID:      "test-packet-004",
 		PackRef:       "bmist-1.0.0",
 		ScenarioID:    "track-g1",
+  Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
 			{LocalID: "l1", Claim: "L1 is true", ClaimType: "derived"},
 		},
