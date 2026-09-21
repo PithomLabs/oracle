@@ -32,10 +32,18 @@ type IntentView struct {
 	State    string `json:"state"`
 }
 
+// EdgeView is a read-only projection of a belief_edge row.
+type EdgeView struct {
+	ParentID string `json:"parent_id"`
+	ChildID  string `json:"child_id"`
+	Kind     string `json:"kind"`
+}
+
 // Snapshot is a complete read-only view of a scenario's ledger state.
 type Snapshot struct {
 	Beliefs                []BeliefView   `json:"beliefs"`
 	Evidence               []EvidenceView `json:"evidence,omitempty"`
+	Edges                  []EdgeView     `json:"edges,omitempty"`
 	Intents                []IntentView   `json:"intents"`
 	AuditLiveOnNonPromoted int            `json:"audit_live_on_nonpromoted"`
 }
@@ -115,6 +123,29 @@ func GetSnapshot(ctx context.Context, db *sql.DB, scenarioID string, opts Snapsh
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
+	}
+
+	// Query edges via belief join for scenario scoping.
+	edgeRows, err := db.QueryContext(ctx,
+		`SELECT be.parent_id, be.child_id, be.kind
+		 FROM belief_edge be
+		 JOIN belief b ON b.id = be.parent_id
+		 WHERE b.scenario_id = $1::UUID
+		 ORDER BY be.parent_id, be.child_id`,
+		scenarioID)
+	if err != nil {
+		return nil, err
+	}
+	defer edgeRows.Close()
+	for edgeRows.Next() {
+		var e EdgeView
+		if err := edgeRows.Scan(&e.ParentID, &e.ChildID, &e.Kind); err != nil {
+			return nil, err
+		}
+		snap.Edges = append(snap.Edges, e)
+	}
+	if err := edgeRows.Err(); err != nil {
+		return nil, err
 	}
 
 	rows, err := db.QueryContext(ctx,
