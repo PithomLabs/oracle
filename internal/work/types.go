@@ -10,6 +10,7 @@ type Task struct {
 	Priority          string  `json:"priority"`
 	CurrentAgent      *string `json:"current_agent,omitempty"`
 	GovernanceRef     *string `json:"governance_ref,omitempty"`
+	OriginPacketID    *string `json:"origin_packet_id,omitempty"`
 	ReopenedFromTaskID *string `json:"reopened_from_task_id,omitempty"`
 	CreatedAt         string  `json:"created_at"`
 	UpdatedAt         string  `json:"updated_at"`

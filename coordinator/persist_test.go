@@ -49,7 +49,7 @@ func TestSubmitPacket_BeliefsPersisted(t *testing.T) {
 		SchemaVersion: packetv1.SchemaVersion,
 		Role:          packetv1.RoleWork,
 		PacketID:      "test-packet-001",
-		PackRef:       "bmist-1.0.0",
+		PackRef:       "bmist@1.0.0",
 		ScenarioID:    "track-g0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
@@ -81,7 +81,7 @@ func TestSubmitPacket_DuplicateSubmitIdempotent(t *testing.T) {
 		SchemaVersion: packetv1.SchemaVersion,
 		Role:          packetv1.RoleWork,
 		PacketID:      "test-packet-002",
-		PackRef:       "bmist-1.0.0",
+		PackRef:       "bmist@1.0.0",
 		ScenarioID:    "track-g0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
@@ -112,7 +112,7 @@ func TestSubmitPacket_CrossScenarioNoDedup(t *testing.T) {
 		SchemaVersion: packetv1.SchemaVersion,
 		Role:          packetv1.RoleWork,
 		PacketID:      "test-packet-003",
-		PackRef:       "bmist-1.0.0",
+		PackRef:       "bmist@1.0.0",
 		ScenarioID:    "track-g0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
@@ -125,7 +125,7 @@ func TestSubmitPacket_CrossScenarioNoDedup(t *testing.T) {
 		SchemaVersion: packetv1.SchemaVersion,
 		Role:          packetv1.RoleWork,
 		PacketID:      "test-packet-004",
-		PackRef:       "bmist-1.0.0",
+		PackRef:       "bmist@1.0.0",
 		ScenarioID:    "track-g1",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{

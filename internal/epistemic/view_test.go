@@ -3,26 +3,60 @@ package epistemic
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/PithomLabs/oracle/internal/migrations"
+	solventmigrations "github.com/PithomLabs/oracle/internal/solventmigrations"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func testDB(t *testing.T) *sql.DB {
 	t.Helper()
+
 	dsn := os.Getenv("ARGUS_TEST_DSN")
 	if dsn == "" {
 		dsn = "postgres://root@localhost:26257/defaultdb?sslmode=disable"
 	}
-	db, err := sql.Open("pgx", dsn)
+
+	adminDB, err := sql.Open("pgx", dsn)
 	if err != nil {
-		t.Fatalf("open db: %v", err)
+		t.Fatalf("open admin db: %v", err)
 	}
-	if err := db.Ping(); err != nil {
-		t.Fatalf("ping db: %v", err)
+
+	dbName := fmt.Sprintf("epistemic_%s_test", t.Name())
+	_, _ = adminDB.ExecContext(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %q CASCADE", dbName))
+	_, err = adminDB.ExecContext(context.Background(), fmt.Sprintf("CREATE DATABASE %q", dbName))
+	if err != nil {
+		adminDB.Close()
+		t.Fatalf("create database: %v", err)
 	}
-	return db
+
+	testDSN := fmt.Sprintf("postgres://root@localhost:26257/%s?sslmode=disable", dbName)
+	conn, err := sql.Open("pgx", testDSN)
+	if err != nil {
+		adminDB.Close()
+		t.Fatalf("open test db: %v", err)
+	}
+
+	if err := solventmigrations.Apply(context.Background(), conn); err != nil {
+		conn.Close()
+		adminDB.Close()
+		t.Fatalf("apply solvent migrations: %v", err)
+	}
+	if err := migrations.Apply(context.Background(), conn); err != nil {
+		conn.Close()
+		adminDB.Close()
+		t.Fatalf("apply oracle migrations: %v", err)
+	}
+
+	t.Cleanup(func() {
+		conn.Close()
+		adminDB.ExecContext(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %q CASCADE", dbName))
+		adminDB.Close()
+	})
+	return conn
 }
 
 func TestDerivesEdgeReturned(t *testing.T) {

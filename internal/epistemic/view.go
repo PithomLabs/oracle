@@ -9,12 +9,13 @@ import (
 
 // BeliefView is a read-only projection of a belief row.
 type BeliefView struct {
-	ID         string   `json:"id"`
-	Claim      string   `json:"claim"`
-	ClaimType  string   `json:"claim_type"`
-	Status     string   `json:"status"`
-	Debt       []string `json:"debt"`
-	FinalTruth bool     `json:"final_truth"`
+	ID              string   `json:"id"`
+	Claim           string   `json:"claim"`
+	ClaimType       string   `json:"claim_type"`
+	Status          string   `json:"status"`
+	Debt            []string `json:"debt"`
+	FinalTruth      bool     `json:"final_truth"`
+	OriginPacketID  string   `json:"origin_packet_id,omitempty"`
 }
 
 // EvidenceView is a read-only projection of an evidence row.
@@ -71,11 +72,11 @@ type SnapshotOpts struct {
 
 // GetSnapshot returns a read-only view of the ledger for a scenario.
 func GetSnapshot(ctx context.Context, db *sql.DB, scenarioID string, opts SnapshotOpts) (*Snapshot, error) {
-	snap := &Snapshot{}
+	snap := &Snapshot{Edges: []EdgeView{}, Intents: []IntentView{}}
 
 	if opts.BeliefID != "" {
 		row := db.QueryRowContext(ctx,
-			`SELECT id, claim, claim_type, status, debt::STRING, final_truth
+			`SELECT id, claim, claim_type, status, debt::STRING, final_truth, origin_packet_id
 			 FROM belief WHERE scenario_id=$1::UUID AND id=$2::UUID`,
 			scenarioID, opts.BeliefID)
 		b, err := scanBelief(row)
@@ -85,7 +86,7 @@ func GetSnapshot(ctx context.Context, db *sql.DB, scenarioID string, opts Snapsh
 		snap.Beliefs = []BeliefView{*b}
 	} else {
 		rows, err := db.QueryContext(ctx,
-			`SELECT id, claim, claim_type, status, debt::STRING, final_truth
+			`SELECT id, claim, claim_type, status, debt::STRING, final_truth, origin_packet_id
 			 FROM belief WHERE scenario_id=$1::UUID ORDER BY claim`,
 			scenarioID)
 		if err != nil {
@@ -177,10 +178,14 @@ type scanner interface {
 func scanBelief(s scanner) (*BeliefView, error) {
 	var b BeliefView
 	var debtRaw string
-	if err := s.Scan(&b.ID, &b.Claim, &b.ClaimType, &b.Status, &debtRaw, &b.FinalTruth); err != nil {
+	var originPacketID sql.NullString
+	if err := s.Scan(&b.ID, &b.Claim, &b.ClaimType, &b.Status, &debtRaw, &b.FinalTruth, &originPacketID); err != nil {
 		return nil, err
 	}
 	b.Debt = parsePGArray(debtRaw)
+	if originPacketID.Valid {
+		b.OriginPacketID = originPacketID.String
+	}
 	return &b, nil
 }
 
@@ -200,7 +205,7 @@ func parsePGArray(s string) []string {
 // GetAllBeliefs returns all beliefs across all scenarios for the dashboard view.
 func GetAllBeliefs(ctx context.Context, db *sql.DB) ([]BeliefView, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, claim, claim_type, status, debt::STRING, final_truth
+		`SELECT id, claim, claim_type, status, debt::STRING, final_truth, origin_packet_id
 		 FROM belief ORDER BY claim`)
 	if err != nil {
 		return nil, err

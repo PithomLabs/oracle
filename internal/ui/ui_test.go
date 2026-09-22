@@ -18,6 +18,7 @@ import (
 	bmistv11 "github.com/PithomLabs/oracle/domain-pack/bmist/v1.1.0"
 	"github.com/PithomLabs/oracle/internal/application"
 	"github.com/PithomLabs/oracle/internal/migrations"
+	solventmigrations "github.com/PithomLabs/oracle/internal/solventmigrations"
 	"github.com/PithomLabs/oracle/internal/work"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -54,7 +55,7 @@ func testDB(t *testing.T) *sql.DB {
 		adminDB.Close()
 		t.Fatalf("open test db: %v", err)
 	}
-	applySolventMigrations(context.Background(), conn)
+	solventmigrations.Apply(context.Background(), conn)
 	migrations.Apply(context.Background(), conn)
 	t.Cleanup(func() {
 		conn.Close()

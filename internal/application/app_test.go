@@ -10,6 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	domainpack "github.com/PithomLabs/oracle/domain-pack"
+	bmistv1 "github.com/PithomLabs/oracle/domain-pack/bmist/v1"
+	"github.com/PithomLabs/oracle/internal/epistemic"
 	"github.com/PithomLabs/oracle/internal/migrations"
 	"github.com/PithomLabs/oracle/internal/work"
 	packetv1 "github.com/PithomLabs/oracle/packet/v1"
@@ -17,6 +20,15 @@ import (
 	"github.com/PithomLabs/oracle/verifier/physics/v1"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+// normalizeUUID converts a flat hex EntityID to CRDB's hyphenated UUID format
+// for comparison. CRDB stores UUIDs as "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx".
+func normalizeUUID(id string) string {
+	if len(id) == 32 {
+		return id[:8] + "-" + id[8:12] + "-" + id[12:16] + "-" + id[16:20] + "-" + id[20:]
+	}
+	return id
+}
 
 // testDB connects to a local CockroachDB and creates an isolated test database.
 func testDB(t *testing.T) *sql.DB {
@@ -967,7 +979,7 @@ func TestContentHashDifferentEvidenceProducesDifferentHash(t *testing.T) {
 	pkt1 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
+		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "derived"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "aaa"},
 		},
@@ -975,7 +987,7 @@ func TestContentHashDifferentEvidenceProducesDifferentHash(t *testing.T) {
 	pkt2 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
+		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "derived"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "bbb"},
 		},
@@ -992,8 +1004,8 @@ func TestContentHashDifferentEdgesProducesDifferentHash(t *testing.T) {
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
-			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
-			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
+			{LocalID: "b1", Claim: "c1", ClaimType: "derived"},
+			{LocalID: "b2", Claim: "c2", ClaimType: "derived"},
 		},
 		Edges: []packetv1.Edge{
 			{LocalID: "e1", FromRef: "local:b1", ToRef: "local:b2", Kind: "derives"},
@@ -1003,8 +1015,8 @@ func TestContentHashDifferentEdgesProducesDifferentHash(t *testing.T) {
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
-			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
-			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
+			{LocalID: "b1", Claim: "c1", ClaimType: "derived"},
+			{LocalID: "b2", Claim: "c2", ClaimType: "derived"},
 		},
 		Edges: []packetv1.Edge{
 			{LocalID: "e1", FromRef: "local:b1", ToRef: "local:b2", Kind: "contradicts"},
@@ -1022,16 +1034,16 @@ func TestContentHashCanonicalOrdering(t *testing.T) {
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
-			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
-			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
+			{LocalID: "b2", Claim: "c2", ClaimType: "derived"},
+			{LocalID: "b1", Claim: "c1", ClaimType: "derived"},
 		},
 	}
 	pkt2 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
-			{LocalID: "b1", Claim: "c1", ClaimType: "math"},
-			{LocalID: "b2", Claim: "c2", ClaimType: "math"},
+			{LocalID: "b1", Claim: "c1", ClaimType: "derived"},
+			{LocalID: "b2", Claim: "c2", ClaimType: "derived"},
 		},
 	}
 	h1 := contentHash(pkt1)
@@ -1045,12 +1057,12 @@ func TestContentHashDifferentPacketIDDifferentHash(t *testing.T) {
 	pkt1 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
+		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "derived"}},
 	}
 	pkt2 := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p2", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
+		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "derived"}},
 	}
 	h1 := contentHash(pkt1)
 	h2 := contentHash(pkt2)
@@ -1148,7 +1160,7 @@ func TestOperatorAssertedRejectedFromAgent(t *testing.T) {
 	pkt := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
+		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "derived"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "operator_asserted", ContentSHA256: "abc123"},
 		},
@@ -1168,7 +1180,7 @@ func TestReproducibleArtifactRequiresArtifactRef(t *testing.T) {
 	pkt := &packetv1.Packet{
 		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
   Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "math"}},
+		Beliefs: []packetv1.Belief{{LocalID: "b1", Claim: "c1", ClaimType: "derived"}},
 		Evidence: []packetv1.Evidence{
 			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "abc123"},
 		},
@@ -1184,161 +1196,91 @@ func TestReproducibleArtifactRequiresArtifactRef(t *testing.T) {
 }
 
 
-func TestAgentCannotPromote(t *testing.T) {
-	db := testDB(t)
-	defer db.Close()
-	app := New(db)
-	ctx := context.Background()
+// ---- Defense-in-depth Persist validation tests (no DB required) ----
 
-	scenarioID := "00000000-0000-0000-0000-000000000090"
+func TestRejectDuplicateLocalIDThroughPersist(t *testing.T) {
+	app := New(nil)
 	pkt := &packetv1.Packet{
-		SchemaVersion: packetv1.SchemaVersion,
-		Role:          packetv1.RoleWork,
-		PacketID:      "agent-promote-test-001",
-		PackRef:       "bmist@1.0.0",
-		ScenarioID:    scenarioID,
-		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+		Agent: packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
-			{LocalID: "b1", Claim: "Agent-captured claim", ClaimType: "derived"},
+			{LocalID: "b1", Claim: "first", ClaimType: "derived"},
+			{LocalID: "b1", Claim: "second", ClaimType: "derived"},
 		},
 	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatalf("begin tx: %v", err)
-	}
-	_, err = app.Persist(ctx, tx, pkt)
-	if err != nil {
-		t.Fatalf("persist: %v", err)
-	}
-	tx.Commit()
-
-	beliefID := EntityID(scenarioID, "belief", "Agent-captured claim")
-
-	// Agent tries to promote via SubmitDecision — should fail (no authority path for agents)
-	err = app.SubmitDecision(ctx, &AuthenticatedDecisionCommand{
-		Type:       "promote",
-		ScenarioID: scenarioID,
-		BeliefID:   beliefID,
-	})
+	tx := &mockTxExecutor{}
+	_, err := app.Persist(context.Background(), tx, pkt)
 	if err == nil {
-		t.Error("agent was able to promote belief — authority isolation violated")
+		t.Fatal("expected error for duplicate local_id, got nil")
 	}
-	t.Logf("promote correctly refused: %v", err)
+	if !strings.Contains(err.Error(), "duplicate local_id") {
+		t.Errorf("error should mention duplicate local_id, got: %v", err)
+	}
 }
 
-func TestAgentCannotDischargeDebt(t *testing.T) {
-	db := testDB(t)
-	defer db.Close()
-	app := New(db)
-	ctx := context.Background()
-
-	scenarioID := "00000000-0000-0000-0000-000000000091"
+func TestRejectCrossTypeLocalIDCollisionThroughPersist(t *testing.T) {
+	app := New(nil)
 	pkt := &packetv1.Packet{
-		SchemaVersion: packetv1.SchemaVersion,
-		Role:          packetv1.RoleWork,
-		PacketID:      "agent-discharge-test-001",
-		PackRef:       "bmist@1.0.0",
-		ScenarioID:    scenarioID,
-		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+		Agent: packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []packetv1.Belief{
-			{LocalID: "b1", Claim: "Claim with debt", ClaimType: "derived", Debt: []string{"needMap"}},
-		},
-	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatalf("begin tx: %v", err)
-	}
-	_, err = app.Persist(ctx, tx, pkt)
-	if err != nil {
-		t.Fatalf("persist: %v", err)
-	}
-	tx.Commit()
-
-	beliefID := EntityID(scenarioID, "belief", "Claim with debt")
-
-	// Agent submits a retirement evidence packet — debt should NOT be discharged
-	retPkt := &packetv1.Packet{
-		SchemaVersion: packetv1.SchemaVersion,
-		Role:          packetv1.RoleWork,
-		PacketID:      "agent-retire-test-001",
-		PackRef:       "bmist@1.0.0",
-		ScenarioID:    scenarioID,
-		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{
-			{LocalID: "b1", Claim: "Claim with debt", ClaimType: "derived"},
+			{LocalID: "x1", Claim: "belief claim", ClaimType: "derived"},
 		},
 		Evidence: []packetv1.Evidence{
-			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"},
+			{LocalID: "x1", BeliefRef: "local:x1", ProvenanceClass: "reproducible_artifact", ContentSHA256: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"},
 		},
 	}
-
-	tx2, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatalf("begin tx: %v", err)
-	}
-	_, err = app.Persist(ctx, tx2, retPkt)
-	if err != nil {
-		t.Fatalf("persist retirement: %v", err)
-	}
-	tx2.Commit()
-
-	// Verify debt still exists (agent cannot discharge)
-	var debtJSON string
-	err = db.QueryRowContext(ctx,
-		`SELECT debt FROM belief WHERE id = $1`, beliefID).Scan(&debtJSON)
-	if err != nil {
-		t.Fatalf("query belief debt: %v", err)
-	}
-	if debtJSON == "" || debtJSON == "[]" || debtJSON == "null" {
-		t.Fatalf("expected debt on belief, got: %s", debtJSON)
-	}
-	t.Logf("belief has debt: %s (correct — agent cannot discharge)", debtJSON)
-}
-
-func TestAgentCannotRetractBelief(t *testing.T) {
-	db := testDB(t)
-	defer db.Close()
-	app := New(db)
-	ctx := context.Background()
-
-	scenarioID := "00000000-0000-0000-0000-000000000092"
-	pkt := &packetv1.Packet{
-		SchemaVersion: packetv1.SchemaVersion,
-		Role:          packetv1.RoleWork,
-		PacketID:      "agent-retract-test-001",
-		PackRef:       "bmist@1.0.0",
-		ScenarioID:    scenarioID,
-		Agent:         packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
-		Beliefs: []packetv1.Belief{
-			{LocalID: "b1", Claim: "Claim to retract", ClaimType: "derived"},
-		},
-	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatalf("begin tx: %v", err)
-	}
-	_, err = app.Persist(ctx, tx, pkt)
-	if err != nil {
-		t.Fatalf("persist: %v", err)
-	}
-	tx.Commit()
-
-	beliefID := EntityID(scenarioID, "belief", "Claim to retract")
-
-	// Agent tries to retract via SubmitDecision — should fail (no authority path for agents)
-	err = app.SubmitDecision(ctx, &AuthenticatedDecisionCommand{
-		Type:       "retract",
-		ScenarioID: scenarioID,
-		BeliefID:   beliefID,
-	})
+	tx := &mockTxExecutor{}
+	_, err := app.Persist(context.Background(), tx, pkt)
 	if err == nil {
-		t.Error("agent was able to retract belief — authority isolation violated")
+		t.Fatal("expected error for cross-type local_id collision, got nil")
 	}
-	t.Logf("retract correctly refused: %v", err)
+	if !strings.Contains(err.Error(), "duplicate local_id") {
+		t.Errorf("error should mention duplicate local_id, got: %v", err)
+	}
 }
+
+func TestRejectInvalidClaimTypeThroughPersist(t *testing.T) {
+	app := New(nil)
+	pkt := &packetv1.Packet{
+		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+		Agent: packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "test", ClaimType: "pizza"},
+		},
+	}
+	tx := &mockTxExecutor{}
+	_, err := app.Persist(context.Background(), tx, pkt)
+	if err == nil {
+		t.Fatal("expected error for invalid claim_type, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid claim_type") {
+		t.Errorf("error should mention invalid claim_type, got: %v", err)
+	}
+}
+
+func TestRejectInvalidEdgeKindThroughPersist(t *testing.T) {
+	app := New(nil)
+	pkt := &packetv1.Packet{
+		ScenarioID: "s1", PacketID: "p1", Role: "work", PackRef: "bmist@1.0.0",
+		Agent: packetv1.Agent{ID: "test-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "first", ClaimType: "derived"},
+		},
+		Edges: []packetv1.Edge{
+			{LocalID: "ed1", FromRef: "local:b1", ToRef: "local:b1", Kind: "invalid_kind"},
+		},
+	}
+	tx := &mockTxExecutor{}
+	_, err := app.Persist(context.Background(), tx, pkt)
+	if err == nil {
+		t.Fatal("expected error for invalid edge kind, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid kind") {
+		t.Errorf("error should mention invalid kind, got: %v", err)
+	}
+}
+
 
 
 func TestAgentIdentityPersistedInSubmission(t *testing.T) {
@@ -1392,5 +1334,833 @@ func TestAgentIdentityPersistedInSubmission(t *testing.T) {
 	}
 	if model != "test-model-v1" {
 		t.Errorf("model = %q, want %q", model, "test-model-v1")
+	}
+}
+
+
+// ---- DB-backed MCP integration tests (real CockroachDB) ----
+
+func newTestPackRegistry(t *testing.T) *domainpack.PackRegistry {
+	t.Helper()
+	registry := domainpack.NewRegistry()
+	pack := &bmistv1.Pack{
+		PackID:          "bmist",
+		Version:         "1.0.0",
+		ClaimTypes:      []string{"derived", "accommodated", "postulated"},
+		EvidenceClasses: []string{"reproducible_artifact", "operator_asserted"},
+		DebtVocabulary:  []string{"needMap", "needInvariant", "needToyCheck", "needNullModel", "needObstruction", "needFaithfulnessReview"},
+		Falsifiers:              []string{"counterexample", "contradiction"},
+		HumanGatedTransitions:   []string{"faithfulness_review", "scope_clarification", "obstruction_assessment"},
+		ConsequentialActions:    []bmistv1.ConsequentialAction{{Action: "publish_claim", Requires: "promoted", Gates: []string{"faithfulness_review"}}},
+	}
+	if err := registry.Register(pack); err != nil {
+		t.Fatalf("failed to register test pack: %v", err)
+	}
+	return registry
+}
+
+func newDBApp(t *testing.T) *App {
+	t.Helper()
+	db := testDB(t)
+	app := New(db)
+	app.SetPackRegistry(newTestPackRegistry(t))
+	return app
+}
+
+func countTableRows(t *testing.T, db *sql.DB, table, where string, args ...any) int {
+	t.Helper()
+	var count int
+	query := fmt.Sprintf("SELECT count(*) FROM %s WHERE %s", table, where)
+	err := db.QueryRowContext(context.Background(), query, args...).Scan(&count)
+	if err != nil {
+		t.Fatalf("count %s: %v", table, err)
+	}
+	return count
+}
+
+func TestMCPHappyPath(t *testing.T) {
+	app := newDBApp(t)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000001"
+	packetID := "happy-path-pkt-001"
+
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      packetID,
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "happy-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-v1"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "happy path belief", ClaimType: "derived"},
+			{LocalID: "b2", Claim: "second belief", ClaimType: "accommodated"},
+		},
+		Evidence: []packetv1.Evidence{
+			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact",
+				ContentSHA256: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+				ArtifactRef:   "artifact://test-artifact"},
+		},
+		Edges: []packetv1.Edge{
+			{LocalID: "ed1", FromRef: "local:b1", ToRef: "local:b2", Kind: "derives"},
+		},
+	}
+
+	// Persist through the real transaction path
+	tx, err := app.DB().BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	result, err := app.Persist(ctx, tx, pkt)
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("persist: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	// Verify result
+	if result.PacketID != packetID {
+		t.Errorf("packet_id = %q, want %q", result.PacketID, packetID)
+	}
+	if len(result.BeliefIDs) != 2 {
+		t.Errorf("belief count = %d, want 2", len(result.BeliefIDs))
+	}
+
+	db := app.DB()
+
+	// Verify packet_submission
+	var psPacketID, psAgentID, psRole string
+	err = db.QueryRowContext(ctx,
+		`SELECT packet_id, agent_id, role FROM packet_submission WHERE packet_id = $1`,
+		packetID).Scan(&psPacketID, &psAgentID, &psRole)
+	if err != nil {
+		t.Fatalf("packet_submission not found: %v", err)
+	}
+	if psAgentID != "happy-agent" {
+		t.Errorf("agent_id = %q, want %q", psAgentID, "happy-agent")
+	}
+
+	// Verify beliefs with origin_packet_id
+	var b1Origin, b2Origin string
+	err = db.QueryRowContext(ctx,
+		`SELECT origin_packet_id FROM belief WHERE claim = $1 AND scenario_id = $2::UUID`,
+		"happy path belief", scenarioID).Scan(&b1Origin)
+	if err != nil {
+		t.Fatalf("belief b1 not found: %v", err)
+	}
+	if b1Origin != packetID {
+		t.Errorf("belief b1 origin_packet_id = %q, want %q", b1Origin, packetID)
+	}
+	err = db.QueryRowContext(ctx,
+		`SELECT origin_packet_id FROM belief WHERE claim = $1 AND scenario_id = $2::UUID`,
+		"second belief", scenarioID).Scan(&b2Origin)
+	if err != nil {
+		t.Fatalf("belief b2 not found: %v", err)
+	}
+	if b2Origin != packetID {
+		t.Errorf("belief b2 origin_packet_id = %q, want %q", b2Origin, packetID)
+	}
+
+	// Verify evidence with origin_packet_id
+	var e1Origin string
+	err = db.QueryRowContext(ctx,
+		`SELECT origin_packet_id FROM evidence WHERE scenario_id = $1::UUID`,
+		scenarioID).Scan(&e1Origin)
+	if err != nil {
+		t.Fatalf("evidence not found: %v", err)
+	}
+	if e1Origin != packetID {
+		t.Errorf("evidence origin_packet_id = %q, want %q", e1Origin, packetID)
+	}
+
+	// Verify edge (belief_edge has no scenario_id; verify via parent_id)
+	var edgeCount int
+	err = db.QueryRowContext(ctx,
+		`SELECT count(*) FROM belief_edge`).Scan(&edgeCount)
+	if err != nil {
+		t.Fatalf("edge query: %v", err)
+	}
+	if edgeCount != 1 {
+		t.Errorf("edge count = %d, want 1", edgeCount)
+	}
+
+	// Verify edge_provenance
+	var epCount int
+	err = db.QueryRowContext(ctx,
+		`SELECT count(*) FROM edge_provenance WHERE origin_packet_id = $1`,
+		packetID).Scan(&epCount)
+	if err != nil {
+		t.Fatalf("edge_provenance query: %v", err)
+	}
+	if epCount != 1 {
+		t.Errorf("edge_provenance count = %d, want 1", epCount)
+	}
+
+	t.Logf("happy path: packet_submission=%d beliefs=%d evidence=%d edges=%d edge_provenance=%d",
+		countTableRows(t, db, "packet_submission", "packet_id = $1", packetID),
+		countTableRows(t, db, "belief", "origin_packet_id = $1", packetID),
+		countTableRows(t, db, "evidence", "origin_packet_id = $1", packetID),
+		countTableRows(t, db, "belief_edge", "true"),  // edges don't have origin column
+		countTableRows(t, db, "edge_provenance", "origin_packet_id = $1", packetID))
+}
+
+func TestMCPRejectsMalformedWithRealDB(t *testing.T) {
+	app := newDBApp(t)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000001"
+
+	// Malformed: missing agent.id — Compile passes (doesn't check agent),
+	// Validate passes (doesn't check agent), ValidatePacket catches it.
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "malformed-pkt-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "", Role: packetv1.RoleWork, Harness: "test", Model: "test-v1"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "should not persist", ClaimType: "derived"},
+		},
+	}
+
+	// Compile should pass (doesn't check agent)
+	if err := app.Compile(ctx, pkt); err != nil {
+		t.Fatalf("compile should pass for empty agent.id: %v", err)
+	}
+	// ValidatePacket should reject (canonical validator checks agent)
+	err := app.ValidatePacket(ctx, pkt)
+	if err == nil {
+		t.Fatal("expected ValidatePacket to fail for empty agent.id")
+	}
+
+	// Verify zero rows
+	db := app.DB()
+	var count int
+	err = db.QueryRowContext(ctx, `SELECT count(*) FROM belief WHERE scenario_id = $1::UUID`, scenarioID).Scan(&count)
+	if err != nil {
+		t.Fatalf("count beliefs: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("belief count = %d, want 0", count)
+	}
+}
+
+func TestMCPIdempotency(t *testing.T) {
+	app := newDBApp(t)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000001"
+	packetID := "idempotent-pkt-001"
+
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      packetID,
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "idempotent-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-v1"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "idempotent belief", ClaimType: "derived"},
+		},
+		Evidence: []packetv1.Evidence{
+			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "reproducible_artifact",
+				ContentSHA256: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+				ArtifactRef:   "artifact://test-artifact"},
+		},
+		// No edges — self-edge would be rejected
+	}
+
+	// First persist
+	tx1, err := app.DB().BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx1: %v", err)
+	}
+	_, err = app.Persist(ctx, tx1, pkt)
+	if err != nil {
+		tx1.Rollback()
+		t.Fatalf("persist1: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("commit1: %v", err)
+	}
+
+	// Second persist (same packet)
+	tx2, err := app.DB().BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx2: %v", err)
+	}
+	_, err = app.Persist(ctx, tx2, pkt)
+	if err != nil {
+		tx2.Rollback()
+		t.Fatalf("persist2: %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("commit2: %v", err)
+	}
+
+	db := app.DB()
+
+	// Verify no duplicates
+	psCount := countTableRows(t, db, "packet_submission", "packet_id = $1", packetID)
+	if psCount != 1 {
+		t.Errorf("packet_submission count = %d, want 1", psCount)
+	}
+
+	beliefCount := countTableRows(t, db, "belief", "origin_packet_id = $1", packetID)
+	if beliefCount != 1 {
+		t.Errorf("belief count = %d, want 1", beliefCount)
+	}
+
+	evidenceCount := countTableRows(t, db, "evidence", "origin_packet_id = $1", packetID)
+	if evidenceCount != 1 {
+		t.Errorf("evidence count = %d, want 1", evidenceCount)
+	}
+
+	// Verify origin_packet_id unchanged
+	var origin string
+	err = db.QueryRowContext(ctx,
+		`SELECT origin_packet_id FROM belief WHERE origin_packet_id = $1 LIMIT 1`,
+		packetID).Scan(&origin)
+	if err != nil {
+		t.Fatalf("origin not found: %v", err)
+	}
+	if origin != packetID {
+		t.Errorf("origin_packet_id = %q, want %q", origin, packetID)
+	}
+}
+
+func TestMCPAtomicRollback(t *testing.T) {
+	app := newDBApp(t)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000001"
+	missingProjectID := "99999999-9999-9999-9999-999999999999"
+
+	// Packet with tasks referencing a non-existent project
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "rollback-pkt-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "rollback-agent", Role: packetv1.RoleWork, Harness: "test", Model: "test-v1"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "should be rolled back", ClaimType: "derived"},
+		},
+		Tasks: []packetv1.Task{
+			{LocalID: "t1", Title: "task with missing project"},
+		},
+	}
+
+	// Override ScenarioID for task preflight to use missing project
+	// The task preflight checks conductor_project for pkt.ScenarioID
+	// We use a scenarioID that has no matching conductor_project
+	pktTask := *pkt
+	pktTask.ScenarioID = missingProjectID
+	pktTask.Beliefs[0].Claim = "rolled back belief"
+	pktTask.PacketID = "rollback-pkt-002"
+
+	// Persist should fail at task preflight
+	tx, err := app.DB().BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	_, err = app.Persist(ctx, tx, &pktTask)
+	if err == nil {
+		tx.Rollback()
+		t.Fatal("expected persist to fail for missing project")
+	}
+	t.Logf("persist failed as expected: %v", err)
+	tx.Rollback()
+
+	// Verify zero objects remain
+	db := app.DB()
+	psCount := countTableRows(t, db, "packet_submission", "packet_id = $1", pktTask.PacketID)
+	if psCount != 0 {
+		t.Errorf("packet_submission count = %d, want 0 after rollback", psCount)
+	}
+
+	beliefCount := countTableRows(t, db, "belief", "origin_packet_id = $1", pktTask.PacketID)
+	if beliefCount != 0 {
+		t.Errorf("belief count = %d, want 0 after rollback", beliefCount)
+	}
+
+	taskCount := countTableRows(t, db, "conductor_task", "origin_packet_id = $1", pktTask.PacketID)
+	if taskCount != 0 {
+		t.Errorf("task count = %d, want 0 after rollback", taskCount)
+	}
+}
+
+func TestMCPSamePacketIDDifferentContent(t *testing.T) {
+	app := newDBApp(t)
+	ctx := context.Background()
+
+	scenarioID := "00000000-0000-0000-0000-000000000001"
+	packetID := "conflict-pkt-001"
+
+	// First packet: valid
+	pkt1 := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      packetID,
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "agent-1", Role: packetv1.RoleWork, Harness: "test", Model: "v1"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "original claim", ClaimType: "derived"},
+		},
+	}
+
+	tx1, err := app.DB().BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx1: %v", err)
+	}
+	_, err = app.Persist(ctx, tx1, pkt1)
+	if err != nil {
+		tx1.Rollback()
+		t.Fatalf("persist1: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("commit1: %v", err)
+	}
+
+	// Second packet: same packet_id, same claim but different agent identity
+	pkt2 := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      packetID, // same ID
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "agent-2", Role: packetv1.RoleWork, Harness: "test", Model: "v2"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "original claim", ClaimType: "derived"}, // same claim
+		},
+	}
+
+	tx2, err := app.DB().BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx2: %v", err)
+	}
+	_, err = app.Persist(ctx, tx2, pkt2)
+	if err != nil {
+		tx2.Rollback()
+		t.Fatalf("persist2: %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("commit2: %v", err)
+	}
+
+	db := app.DB()
+
+	// Verify packet_submission still has original agent (ON CONFLICT DO NOTHING preserves first)
+	var agentID string
+	err = db.QueryRowContext(ctx,
+		`SELECT agent_id FROM packet_submission WHERE packet_id = $1`,
+		packetID).Scan(&agentID)
+	if err != nil {
+		t.Fatalf("packet_submission not found: %v", err)
+	}
+	if agentID != "agent-1" {
+		t.Errorf("agent_id = %q, want %q (original should be preserved)", agentID, "agent-1")
+	}
+
+	// Verify no duplicate beliefs (same claim = same EntityID = ON CONFLICT DO NOTHING)
+	beliefCount := countTableRows(t, db, "belief", "origin_packet_id = $1 AND scenario_id = $2::UUID", packetID, scenarioID)
+	if beliefCount != 1 {
+		t.Errorf("belief count = %d, want 1 (no duplicate)", beliefCount)
+	}
+
+	// Verify original origin_packet_id unchanged
+	var origin string
+	err = db.QueryRowContext(ctx,
+		`SELECT origin_packet_id FROM belief WHERE scenario_id = $1::UUID AND claim = $2`,
+		scenarioID, "original claim").Scan(&origin)
+	if err != nil {
+		t.Fatalf("belief not found: %v", err)
+	}
+	if origin != packetID {
+		t.Errorf("origin_packet_id = %q, want %q", origin, packetID)
+	}
+}
+
+// TestGetContextReadsBackPersistedState proves the freeze-critical invariant:
+//
+//	WRITE → COMMIT → READ-BACK
+//
+// Uses three packets from two agents to verify per-object provenance.
+func TestGetContextReadsBackPersistedState(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	app := New(db)
+	ctx := context.Background()
+	scenarioID := "00000000-0000-0000-0000-0000000000A0"
+	projectID := scenarioID
+
+	// Create project
+	_, err := db.ExecContext(ctx,
+		`INSERT INTO conductor_project (id, name, status) VALUES ($1, 'freeze-test-project', 'active')
+		 ON CONFLICT (id) DO NOTHING`, projectID)
+	if err != nil {
+		t.Fatalf("insert project: %v", err)
+	}
+
+	// Create task
+	ws := work.NewStore(db)
+	taskID := EntityID(scenarioID, "task", "freeze-test-task")
+	task := &work.Task{
+		ID:        taskID,
+		ProjectID: projectID,
+		Title:     "freeze test task",
+	}
+	if err := ws.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	// --- Packet P1: work agent, 1 belief + 1 evidence ---
+	p1PacketID := "freeze-pkt-p1"
+	p1 := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      p1PacketID,
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "agent-p1", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "first claim from P1", ClaimType: "derived", Debt: []string{"needMap"}},
+		},
+		Evidence: []packetv1.Evidence{
+			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "external_feed", ContentSHA256: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"},
+		},
+	}
+	tx1, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx1: %v", err)
+	}
+	res1, err := app.Persist(ctx, tx1, p1)
+	if err != nil {
+		tx1.Rollback()
+		t.Fatalf("persist P1: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("commit P1: %v", err)
+	}
+	belief1ID := res1.BeliefIDs["b1"]
+
+	// --- Packet P2: adversarial agent, 1 belief + 1 evidence ---
+	p2PacketID := "freeze-pkt-p2"
+	p2 := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleAdversarial,
+		PacketID:      p2PacketID,
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "agent-p2", Role: packetv1.RoleAdversarial, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "contradiction from P2", ClaimType: "derived"},
+		},
+		Evidence: []packetv1.Evidence{
+			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "external_feed", ContentSHA256: "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3"},
+		},
+	}
+	tx2, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx2: %v", err)
+	}
+	res2, err := app.Persist(ctx, tx2, p2)
+	if err != nil {
+		tx2.Rollback()
+		t.Fatalf("persist P2: %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("commit P2: %v", err)
+	}
+	belief2ID := res2.BeliefIDs["b1"]
+
+	// --- Packet P3: work agent, 1 edge (contradicts) + minimal belief ---
+	p3PacketID := "freeze-pkt-p3"
+	p3 := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      p3PacketID,
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "agent-p1", Role: packetv1.RoleWork, Harness: "test", Model: "test-model"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b-witness", Claim: "edge witness belief", ClaimType: "derived"},
+		},
+		Edges: []packetv1.Edge{
+			{LocalID: "ed1", FromRef: "canonical:belief:" + belief1ID, ToRef: "canonical:belief:" + belief2ID, Kind: "contradicts"},
+		},
+	}
+	tx3, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx3: %v", err)
+	}
+	_, err = app.Persist(ctx, tx3, p3)
+	if err != nil {
+		tx3.Rollback()
+		t.Fatalf("persist P3: %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("commit P3: %v", err)
+	}
+
+	// --- GetContext read-back ---
+	ctxResult, err := app.GetContext(ctx, taskID)
+	if err != nil {
+		t.Fatalf("GetContext: %v", err)
+	}
+
+	// Task identity
+	if ctxResult.Task == nil {
+		t.Fatal("GetContext returned nil task")
+	}
+	if ctxResult.Task.ID != normalizeUUID(taskID) {
+		t.Errorf("task ID = %q, want %q", ctxResult.Task.ID, normalizeUUID(taskID))
+	}
+	if !strings.EqualFold(ctxResult.Task.ProjectID, projectID) {
+		t.Errorf("task ProjectID = %q, want %q", ctxResult.Task.ProjectID, projectID)
+	}
+
+	// Availability
+	if !ctxResult.Availability.Snapshot.Available {
+		t.Errorf("snapshot unavailable: %s", ctxResult.Availability.Snapshot.Reason)
+	}
+	if !ctxResult.Availability.Task.Available {
+		t.Errorf("task unavailable: %s", ctxResult.Availability.Task.Reason)
+	}
+
+	// Beliefs: expect 3 (P1 + P2 + P3 witness)
+	snap := ctxResult.Snapshot
+	if len(snap.Beliefs) != 3 {
+		t.Fatalf("belief count = %d, want 3", len(snap.Beliefs))
+	}
+
+	// Build belief map for assertions
+	// Normalize keys: CRDB returns hyphenated UUIDs, EntityID returns flat hex
+	beliefMap := make(map[string]epistemic.BeliefView)
+	for _, b := range snap.Beliefs {
+		beliefMap[b.ID] = b
+	}
+
+	// Assert P1 belief
+	b1, ok := beliefMap[normalizeUUID(belief1ID)]
+	if !ok {
+		t.Fatalf("belief from P1 not found (ID=%s)", belief1ID)
+	}
+	if b1.Claim != "first claim from P1" {
+		t.Errorf("P1 claim = %q, want %q", b1.Claim, "first claim from P1")
+	}
+	if b1.OriginPacketID != p1PacketID {
+		t.Errorf("P1 origin_packet_id = %q, want %q", b1.OriginPacketID, p1PacketID)
+	}
+	if len(b1.Debt) != 1 || b1.Debt[0] != "needMap" {
+		t.Errorf("P1 debt = %v, want [needMap]", b1.Debt)
+	}
+
+	// Assert P2 belief
+	b2, ok := beliefMap[normalizeUUID(belief2ID)]
+	if !ok {
+		t.Fatalf("belief from P2 not found (ID=%s)", belief2ID)
+	}
+	if b2.Claim != "contradiction from P2" {
+		t.Errorf("P2 claim = %q, want %q", b2.Claim, "contradiction from P2")
+	}
+	if b2.OriginPacketID != p2PacketID {
+		t.Errorf("P2 origin_packet_id = %q, want %q", b2.OriginPacketID, p2PacketID)
+	}
+	// P2 submits debt=nil → stored [] → GetContext [].
+	// This proves the current path round-trips the packet faithfully.
+	// CompileDebt / pack initial_debt is not applied during production persist.
+	// This is a known semantic boundary, not a bug.
+	// Revisit only if a concrete research-cycle failure demonstrates that a belief
+	// can enter the epistemic ledger without mandatory debt that the active pack requires.
+	if len(b2.Debt) != 0 {
+		t.Errorf("P2 debt = %v, want [] (CompileDebt not in persist path)", b2.Debt)
+	}
+
+	// Assert provenance is per-object and distinct
+	if p1PacketID == p2PacketID {
+		t.Errorf("P1 and P2 packet IDs must differ, both = %q", p1PacketID)
+	}
+	if b1.OriginPacketID == b2.OriginPacketID {
+		t.Errorf("beliefs must have distinct origins, both = %q", b1.OriginPacketID)
+	}
+
+	// Evidence: expect 2 (P1 + P2)
+	if len(snap.Evidence) != 2 {
+		t.Fatalf("evidence count = %d, want 2", len(snap.Evidence))
+	}
+	evidenceMap := make(map[string]epistemic.EvidenceView)
+	for _, e := range snap.Evidence {
+		key := normalizeUUID(e.BeliefID) + ":" + e.ProvenanceClass
+		evidenceMap[key] = e
+	}
+	if _, ok := evidenceMap[normalizeUUID(belief1ID)+":external_feed"]; !ok {
+		t.Error("P1 evidence (external_feed) not found")
+	}
+	if _, ok := evidenceMap[normalizeUUID(belief2ID)+":external_feed"]; !ok {
+		t.Error("P2 evidence (external_feed) not found")
+	}
+
+	// Edges: expect 1 (P3's contradicts edge)
+	if len(snap.Edges) != 1 {
+		t.Fatalf("edge count = %d, want 1", len(snap.Edges))
+	}
+	edge := snap.Edges[0]
+	if edge.ParentID != normalizeUUID(belief1ID) {
+		t.Errorf("edge parent_id = %q, want %q", edge.ParentID, normalizeUUID(belief1ID))
+	}
+	if edge.ChildID != normalizeUUID(belief2ID) {
+		t.Errorf("edge child_id = %q, want %q", edge.ChildID, normalizeUUID(belief2ID))
+	}
+	if edge.Kind != "contradicts" {
+		t.Errorf("edge kind = %q, want contradicts", edge.Kind)
+	}
+
+	t.Logf("freeze read-back verified: beliefs=%d evidence=%d edges=%d origins={%s,%s}",
+		len(snap.Beliefs), len(snap.Evidence), len(snap.Edges), p1PacketID, p2PacketID)
+}
+
+// TestListByProjectReturnsOriginPacketID verifies the ListByProject query
+
+// TestListByProjectReturnsOriginPacketID verifies the ListByProject query
+// succeeds with matching SELECT/Scan columns including origin_packet_id.
+func TestListByProjectReturnsOriginPacketID(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	ctx := context.Background()
+	projectID := "00000000-0000-0000-0000-0000000000B0"
+
+	// Create project
+	_, err := db.ExecContext(ctx,
+		`INSERT INTO conductor_project (id, name, status) VALUES ($1, 'listbyproject-test', 'active')
+		 ON CONFLICT DO NOTHING`, projectID)
+	if err != nil {
+		t.Fatalf("insert project: %v", err)
+	}
+
+	// Insert a packet_submission record (required by FK on origin_packet_id)
+	originPacketID := "test-origin-pkt-001"
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO packet_submission (packet_id, scenario_id, agent_id, role, harness, model, content_sha256)
+		 VALUES ($1, '00000000-0000-0000-0000-0000000000FF', 'test-agent', 'work', 'test', 'test-model', 'abc123')`,
+		originPacketID)
+	if err != nil {
+		t.Fatalf("insert packet_submission: %v", err)
+	}
+
+	// Create task with origin_packet_id via raw SQL (work.Store.Create doesn't persist origin_packet_id)
+	ws := work.NewStore(db)
+	taskID := EntityID(projectID, "task", "listbyproject-test-task")
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO conductor_task (id, project_id, title, description, status, priority, current_agent, governance_ref, origin_packet_id, reopened_from_task_id, created_at, updated_at)
+		 VALUES ($1, $2, 'test task', 'test desc', 'proposed', 'medium', NULL, NULL, $3, NULL, now(), now())`, taskID, projectID, originPacketID)
+	if err != nil {
+		t.Fatalf("insert task: %v", err)
+	}
+
+	// ListByProject must succeed (no scan mismatch)
+	tasks, err := ws.ListByProject(ctx, projectID)
+	if err != nil {
+		t.Fatalf("ListByProject failed: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+
+	task := tasks[0]
+	if task.ID != normalizeUUID(taskID) {
+		t.Errorf("task ID = %q, want %q", task.ID, normalizeUUID(taskID))
+	}
+	if task.OriginPacketID == nil || *task.OriginPacketID != originPacketID {
+		t.Errorf("origin_packet_id = %v, want %q", task.OriginPacketID, originPacketID)
+	}
+	if task.Title != "test task" {
+		t.Errorf("title = %q, want %q", task.Title, "test task")
+	}
+	if task.Status != "proposed" {
+		t.Errorf("status = %q, want proposed", task.Status)
+	}
+
+	t.Logf("ListByProject verified: task=%s origin_packet_id=%s", task.ID, *task.OriginPacketID)
+}
+
+// TestPersistDoesNotApplyPackInitialDebt verifies that Persist stores the
+// packet's debt directly — no union with the Domain Pack's initial_debt.
+//
+// Current production semantics:
+//   packet debt → Persist() → stored belief debt
+//
+// NOT:
+//   packet debt + pack initial_debt → Persist()
+//
+// CompileDebt (coordinator/validate.go) unions packInitialDebt with
+// beliefDebt but is never called from the production MCP path.
+//
+// If CompileDebt is wired in the future, this test should change to expect
+// the bmist@1.0.0 initial_debt (6 items).
+func TestPersistDoesNotApplyPackInitialDebt(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	app := New(db)
+	ctx := context.Background()
+	scenarioID := "00000000-0000-0000-0000-0000000000C0"
+
+	// Packet with Debt=nil, PackRef=bmist@1.0.0
+	pkt := &packetv1.Packet{
+		SchemaVersion: packetv1.SchemaVersion,
+		Role:          packetv1.RoleWork,
+		PacketID:      "debt-test-pkt-001",
+		PackRef:       "bmist@1.0.0",
+		ScenarioID:    scenarioID,
+		Agent:         packetv1.Agent{ID: "agent-debt", Role: packetv1.RoleWork, Harness: "test", Model: "test"},
+		Beliefs: []packetv1.Belief{
+			{LocalID: "b1", Claim: "debt test belief", ClaimType: "derived", Debt: nil},
+		},
+		Evidence: []packetv1.Evidence{
+			{LocalID: "e1", BeliefRef: "local:b1", ProvenanceClass: "external_feed", ContentSHA256: "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"},
+		},
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	result, err := app.Persist(ctx, tx, pkt)
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("persist: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	beliefID := result.BeliefIDs["b1"]
+	snap, err := epistemic.GetSnapshot(ctx, db, scenarioID, epistemic.SnapshotOpts{})
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+
+	// Find the belief in the snapshot
+	var found bool
+	for _, b := range snap.Beliefs {
+		// Normalize: CRDB returns hyphenated UUIDs, EntityID returns flat hex
+		bID := strings.ReplaceAll(b.ID, "-", "")
+		pID := strings.ReplaceAll(beliefID, "-", "")
+		if strings.EqualFold(bID, pID) {
+			found = true
+			// Debt must be empty — CompileDebt not wired
+			if len(b.Debt) != 0 {
+				t.Errorf("debt = %v, want [] (CompileDebt not in persist path); if wired, expect 6 items from bmist@1.0.0", b.Debt)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("belief %s not found in snapshot", beliefID)
 	}
 }

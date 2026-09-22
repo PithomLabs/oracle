@@ -36,8 +36,12 @@ type TaskUpdateFields struct {
 	Priority    *string `json:"priority,omitempty"`
 }
 
-func generateID() string {
-	return uuid.New().String()
+func generateID() (string, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return "", fmt.Errorf("generate uuid v7: %w", err)
+	}
+	return id.String(), nil
 }
 
 func nowRFC3339() string {
@@ -47,7 +51,11 @@ func nowRFC3339() string {
 // Create inserts a new task in proposed state.
 func (s *Store) Create(ctx context.Context, task *Task) error {
 	if task.ID == "" {
-		task.ID = generateID()
+		id, err := generateID()
+		if err != nil {
+			return err
+		}
+		task.ID = id
 	}
 	if task.ProjectID == "" {
 		return fmt.Errorf("task project_id is required")
@@ -79,17 +87,21 @@ func (s *Store) Create(ctx context.Context, task *Task) error {
 // GetByID retrieves a task by ID.
 func (s *Store) GetByID(ctx context.Context, id string) (*Task, error) {
 	task := &Task{}
+	var desc sql.NullString
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, title, description, status, priority, current_agent, governance_ref, reopened_from_task_id, created_at, updated_at
+		`SELECT id, project_id, title, description, status, priority, current_agent, governance_ref, origin_packet_id, reopened_from_task_id, created_at, updated_at
 		 FROM conductor_task WHERE id = $1`, id).Scan(
-		&task.ID, &task.ProjectID, &task.Title, &task.Description, &task.Status,
-		&task.Priority, &task.CurrentAgent, &task.GovernanceRef,
+		&task.ID, &task.ProjectID, &task.Title, &desc, &task.Status,
+		&task.Priority, &task.CurrentAgent, &task.GovernanceRef, &task.OriginPacketID,
 		&task.ReopenedFromTaskID, &task.CreatedAt, &task.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get task: %w", err)
+	}
+	if desc.Valid {
+		task.Description = desc.String
 	}
 	return task, nil
 }
@@ -200,7 +212,10 @@ func (s *Store) Transition(ctx context.Context, taskID string, fromStatus string
 		return fmt.Errorf("update task status: %w", err)
 	}
 
-	activityID := generateID()
+	activityID, err := generateID()
+	if err != nil {
+		return err
+	}
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO conductor_activity (id, task_id, actor_type, actor_id, action, details, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, now())`,
@@ -252,7 +267,10 @@ func (s *Store) Claim(ctx context.Context, taskID string, agentID string) error 
 		return ErrClaimFailed
 	}
 
-	activityID := generateID()
+	activityID, err := generateID()
+	if err != nil {
+		return err
+	}
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO conductor_activity (id, task_id, actor_type, actor_id, action, details, created_at)
 		 VALUES ($1, $2, 'agent', $3, 'task.claimed', '{}', now())`,
@@ -283,7 +301,10 @@ func (s *Store) Release(ctx context.Context, taskID string, agentID string) erro
 		return ErrReleaseFailed
 	}
 
-	activityID := generateID()
+	activityID, err := generateID()
+	if err != nil {
+		return err
+	}
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO conductor_activity (id, task_id, actor_type, actor_id, action, details, created_at)
 		 VALUES ($1, $2, 'agent', $3, 'task.released', '{}', now())`,
@@ -298,7 +319,7 @@ func (s *Store) Release(ctx context.Context, taskID string, agentID string) erro
 // ListAll returns all tasks across all projects.
 func (s *Store) ListAll(ctx context.Context) ([]*Task, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, title, description, status, priority, current_agent, governance_ref, reopened_from_task_id, created_at, updated_at
+		`SELECT id, project_id, title, description, status, priority, current_agent, governance_ref, origin_packet_id, reopened_from_task_id, created_at, updated_at
 		 FROM conductor_task ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list all tasks: %w", err)
@@ -308,11 +329,15 @@ func (s *Store) ListAll(ctx context.Context) ([]*Task, error) {
 	var tasks []*Task
 	for rows.Next() {
 		task := &Task{}
+		var desc sql.NullString
 		if err := rows.Scan(
-			&task.ID, &task.ProjectID, &task.Title, &task.Description, &task.Status,
-			&task.Priority, &task.CurrentAgent, &task.GovernanceRef,
+			&task.ID, &task.ProjectID, &task.Title, &desc, &task.Status,
+			&task.Priority, &task.CurrentAgent, &task.GovernanceRef, &task.OriginPacketID,
 			&task.ReopenedFromTaskID, &task.CreatedAt, &task.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan task: %w", err)
+		}
+		if desc.Valid {
+			task.Description = desc.String
 		}
 		tasks = append(tasks, task)
 	}
@@ -322,7 +347,7 @@ func (s *Store) ListAll(ctx context.Context) ([]*Task, error) {
 // ListByProject returns all tasks for a project.
 func (s *Store) ListByProject(ctx context.Context, projectID string) ([]*Task, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, title, description, status, priority, current_agent, governance_ref, reopened_from_task_id, created_at, updated_at
+		`SELECT id, project_id, title, description, status, priority, current_agent, governance_ref, origin_packet_id, reopened_from_task_id, created_at, updated_at
 		 FROM conductor_task WHERE project_id = $1 ORDER BY created_at DESC`, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
@@ -332,11 +357,15 @@ func (s *Store) ListByProject(ctx context.Context, projectID string) ([]*Task, e
 	var tasks []*Task
 	for rows.Next() {
 		task := &Task{}
+		var desc sql.NullString
 		if err := rows.Scan(
-			&task.ID, &task.ProjectID, &task.Title, &task.Description, &task.Status,
-			&task.Priority, &task.CurrentAgent, &task.GovernanceRef,
+			&task.ID, &task.ProjectID, &task.Title, &desc, &task.Status,
+			&task.Priority, &task.CurrentAgent, &task.GovernanceRef, &task.OriginPacketID,
 			&task.ReopenedFromTaskID, &task.CreatedAt, &task.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan task: %w", err)
+		}
+		if desc.Valid {
+			task.Description = desc.String
 		}
 		tasks = append(tasks, task)
 	}
@@ -346,7 +375,7 @@ func (s *Store) ListByProject(ctx context.Context, projectID string) ([]*Task, e
 // GetTasksByGovernanceRef finds tasks linked to a belief via governance_ref.
 func (s *Store) GetTasksByGovernanceRef(ctx context.Context, beliefID string) ([]*Task, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, title, COALESCE(description, ''), status, priority, current_agent, governance_ref, reopened_from_task_id, created_at, updated_at
+		`SELECT id, project_id, title, COALESCE(description, ''), status, priority, current_agent, governance_ref, origin_packet_id, reopened_from_task_id, created_at, updated_at
 		 FROM conductor_task WHERE governance_ref = $1::UUID ORDER BY created_at DESC`, beliefID)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks by governance_ref: %w", err)
@@ -356,11 +385,15 @@ func (s *Store) GetTasksByGovernanceRef(ctx context.Context, beliefID string) ([
 	var tasks []*Task
 	for rows.Next() {
 		task := &Task{}
+		var desc sql.NullString
 		if err := rows.Scan(
-			&task.ID, &task.ProjectID, &task.Title, &task.Description, &task.Status,
-			&task.Priority, &task.CurrentAgent, &task.GovernanceRef,
+			&task.ID, &task.ProjectID, &task.Title, &desc, &task.Status,
+			&task.Priority, &task.CurrentAgent, &task.GovernanceRef, &task.OriginPacketID,
 			&task.ReopenedFromTaskID, &task.CreatedAt, &task.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan task: %w", err)
+		}
+		if desc.Valid {
+			task.Description = desc.String
 		}
 		tasks = append(tasks, task)
 	}
@@ -369,13 +402,17 @@ func (s *Store) GetTasksByGovernanceRef(ctx context.Context, beliefID string) ([
 
 // AddDependency adds a blocking dependency between tasks.
 func (s *Store) AddDependency(ctx context.Context, taskID, blockedByID string) error {
+	id, err := generateID()
+	if err != nil {
+		return err
+	}
 	dep := &Dependency{
-		ID:          generateID(),
+		ID:          id,
 		TaskID:      taskID,
 		BlockedByID: blockedByID,
 		CreatedAt:   nowRFC3339(),
 	}
-	_, err := s.db.ExecContext(ctx,
+	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO conductor_dependency (id, task_id, blocked_by_id, created_at)
 		 VALUES ($1, $2, $3, $4)`,
 		dep.ID, dep.TaskID, dep.BlockedByID, dep.CreatedAt)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/PithomLabs/oracle/internal/application"
 	"github.com/PithomLabs/oracle/internal/migrations"
+	solventmigrations "github.com/PithomLabs/oracle/internal/solventmigrations"
 	domainpack "github.com/PithomLabs/oracle/domain-pack"
 	bmistv1 "github.com/PithomLabs/oracle/domain-pack/bmist/v1"
 	bmistv11 "github.com/PithomLabs/oracle/domain-pack/bmist/v1.1.0"
@@ -56,8 +57,16 @@ func integrationDB(t *testing.T) *sql.DB {
 		adminDB.Close()
 		t.Fatalf("open test db: %v", err)
 	}
-	integApplySolventMigrations(context.Background(), conn)
-	migrations.Apply(context.Background(), conn)
+	if err := solventmigrations.Apply(context.Background(), conn); err != nil {
+		conn.Close()
+		adminDB.Close()
+		t.Fatalf("apply solvent migrations: %v", err)
+	}
+	if err := migrations.Apply(context.Background(), conn); err != nil {
+		conn.Close()
+		adminDB.Close()
+		t.Fatalf("apply oracle migrations: %v", err)
+	}
 	t.Cleanup(func() {
 		conn.Close()
 		adminDB.ExecContext(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %q CASCADE", dbName))
@@ -302,7 +311,7 @@ func TestFullIntegration(t *testing.T) {
 	insightsW := httptest.NewRecorder()
 	uiServer.HandleInsights(insightsW, insightsReq)
 	if insightsW.Code != http.StatusOK {
-		t.Fatalf("step 11: insights: %d", insightsW.Code)
+		t.Fatalf("step 11: insights: %d body: %s", insightsW.Code, insightsW.Body.String())
 	}
 	t.Log("Step 11: insights page renders")
 
@@ -349,7 +358,7 @@ func TestFullIntegration(t *testing.T) {
 			{LocalID: "adv1", Claim: "adversarial refutation", ClaimType: "derived"},
 		},
 		Edges: []packetv1.Edge{
-			{LocalID: "adv1", FromRef: "local:adv1", ToRef: "canonical:belief:" + belief2ID, Kind: packetv1.EdgeContradicts},
+			{LocalID: "adv-edge1", FromRef: "local:adv1", ToRef: "canonical:belief:" + belief2ID, Kind: packetv1.EdgeContradicts},
 		},
 	}
 	tx4, err := db.BeginTx(ctx, nil)

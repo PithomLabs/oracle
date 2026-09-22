@@ -27,6 +27,7 @@ go.work
 .gut
 .git
 .cockroach-data
+.argus-pids/
 .opencode
 bin/
 path/tmp/

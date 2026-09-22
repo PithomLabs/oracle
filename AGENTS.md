@@ -279,6 +279,42 @@ Default login token: argus-local-operator (override with ARGUS_OPERATOR_TOKEN)
 - RCP graph traversal (broad scenario projection only)
 - Live Work Agent + Adversarial Agent research run
 
+
+## 14. BOOKKEEPING FREEZE 
+```text
+BOOKKEEPING FREEZE
+
+ARGUS must not accumulate research-accounting infrastructure merely because
+it appears useful.
+
+A new accounting capability requires all three:
+
+1. A concrete failure observed in an actual work/review cycle.
+2. Evidence that the failure affects trust, research continuity, authority,
+   reproducibility, or adjudication.
+3. The smallest mechanism capable of fixing that failure.
+
+Prefer system-generated accounting over agent-authored bookkeeping.
+
+Keep infrastructure accounting separate from research epistemology:
+
+    research obligations = the work
+    ledger obligations   = accounting
+
+The freeze does not restrict the research program, EBP debt, scientific
+gates, null models, counterexamples, or methodology.
+
+When an accounting proposal is deferred, record its trigger condition rather
+than implementing it preemptively.
+
+Deferred until demonstrated need:
+- review-coverage persistence
+- context snapshots
+- epistemic-kind field
+- agent attestation
+- additional provenance projections
+```
+
 ## 14. Historical Planning
 
 The following directories contain historical planning artifacts from earlier development phases. Do not treat them as current implementation instructions:

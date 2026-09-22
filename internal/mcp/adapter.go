@@ -66,6 +66,9 @@ func (a *Adapter) handleSubmitPacket(ctx context.Context, args json.RawMessage) 
 	if err := a.app.Validate(ctx, &pkt); err != nil {
 		return nil, fmt.Errorf("validate: %w", err)
 	}
+	if err := a.app.ValidatePacket(ctx, &pkt); err != nil {
+		return nil, fmt.Errorf("validate packet: %w", err)
+	}
 
 	// Begin transaction, persist, commit. Rollback on error.
 	tx, err := a.app.DB().BeginTx(ctx, nil)

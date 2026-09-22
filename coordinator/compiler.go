@@ -7,9 +7,9 @@ import (
 	packetv1 "github.com/PithomLabs/oracle/packet/v1"
 )
 
-// parsePackRef splits "bmist-1.0.0" into packID and version.
+// parsePackRef splits "bmist@1.1.0" into packID and version.
 func parsePackRef(ref string) (string, string) {
-	parts := strings.SplitN(ref, "-", 2)
+	parts := strings.SplitN(ref, "@", 2)
 	if len(parts) == 2 {
 		return parts[0], parts[1]
 	}

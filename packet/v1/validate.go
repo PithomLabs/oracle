@@ -91,9 +91,9 @@ func validateAgent(pkt *Packet) error {
 	return nil
 }
 
-// parsePackRef splits "bmist-v1" into packID and version.
+// parsePackRef splits "bmist@1.1.0" into packID and version.
 func parsePackRef(ref string) (string, string) {
-	parts := strings.SplitN(ref, "-", 2)
+	parts := strings.SplitN(ref, "@", 2)
 	if len(parts) == 2 {
 		return parts[0], parts[1]
 	}
@@ -117,6 +117,12 @@ func validateBeliefs(pkt *Packet) error {
 		}
 		if b.ClaimType == "" {
 			return fmt.Errorf("belief[%d]: claim_type is required", i)
+		}
+		switch b.ClaimType {
+		case "derived", "accommodated", "postulated":
+			// valid
+		default:
+			return fmt.Errorf("belief[%d]: invalid claim_type %q (must be derived, accommodated, or postulated)", i, b.ClaimType)
 		}
 	}
 	return nil
@@ -150,20 +156,34 @@ func validateEvidence(pkt *Packet) error {
 	return nil
 }
 
-// validateReferences checks that all local/canonical references are well-formed.
+// validateReferences checks that all local/canonical references are well-formed
+// and that local_ids are globally unique within the packet.
 func validateReferences(pkt *Packet) error {
-	// Build local ID set
+	// Build local ID set with duplicate detection.
+	// The local:<id> reference grammar means all local_ids share one namespace.
 	localIDs := make(map[string]bool)
 	for _, b := range pkt.Beliefs {
+		if localIDs[b.LocalID] {
+			return fmt.Errorf("duplicate local_id %q across packet entities", b.LocalID)
+		}
 		localIDs[b.LocalID] = true
 	}
 	for _, e := range pkt.Evidence {
+		if localIDs[e.LocalID] {
+			return fmt.Errorf("duplicate local_id %q across packet entities", e.LocalID)
+		}
 		localIDs[e.LocalID] = true
 	}
 	for _, edge := range pkt.Edges {
+		if localIDs[edge.LocalID] {
+			return fmt.Errorf("duplicate local_id %q across packet entities", edge.LocalID)
+		}
 		localIDs[edge.LocalID] = true
 	}
 	for _, t := range pkt.Tasks {
+		if localIDs[t.LocalID] {
+			return fmt.Errorf("duplicate local_id %q across packet entities", t.LocalID)
+		}
 		localIDs[t.LocalID] = true
 	}
 

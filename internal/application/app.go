@@ -290,6 +290,15 @@ func (a *App) Validate(ctx context.Context, pkt *packetv1.Packet) error {
 	return nil
 }
 
+// ValidatePacket runs the canonical packet structural validator (fail-closed).
+// If the pack registry is unavailable, validation is rejected — never silently skipped.
+func (a *App) ValidatePacket(ctx context.Context, pkt *packetv1.Packet) error {
+	if a.packRegistry == nil {
+		return fmt.Errorf("packet validation unavailable: pack registry is not configured")
+	}
+	return packetv1.Validate(pkt, a.packRegistry)
+}
+
 func (a *App) findVerifierSpec(verifierID string) *VerifierSpec {
 	for i := range a.verifierSpecs {
 		if a.verifierSpecs[i].VerifierID == verifierID {
@@ -348,6 +357,78 @@ func (a *App) Persist(ctx context.Context, tx TxExecutor, pkt *packetv1.Packet) 
 		BeliefIDs: make(map[string]string),
 	}
 
+	// Defense-in-depth: global local_id uniqueness across all entity types.
+	// The local:<id> reference grammar means all local_ids share one namespace.
+	{
+		seen := make(map[string]bool)
+		type entry struct{ kind, id string }
+		var collisions []entry
+		for _, b := range pkt.Beliefs {
+			if seen[b.LocalID] {
+				collisions = append(collisions, entry{"belief", b.LocalID})
+			}
+			seen[b.LocalID] = true
+		}
+		for _, e := range pkt.Evidence {
+			if seen[e.LocalID] {
+				collisions = append(collisions, entry{"evidence", e.LocalID})
+			}
+			seen[e.LocalID] = true
+		}
+		for _, edge := range pkt.Edges {
+			if seen[edge.LocalID] {
+				collisions = append(collisions, entry{"edge", edge.LocalID})
+			}
+			seen[edge.LocalID] = true
+		}
+		for _, t := range pkt.Tasks {
+			if seen[t.LocalID] {
+				collisions = append(collisions, entry{"task", t.LocalID})
+			}
+			seen[t.LocalID] = true
+		}
+		if len(collisions) > 0 {
+			return nil, fmt.Errorf("duplicate local_id across packet entities: %v", collisions)
+		}
+	}
+
+	// Defense-in-depth: validate claim_type enum values before INSERT.
+	for i, b := range pkt.Beliefs {
+		switch b.ClaimType {
+		case "derived", "accommodated", "postulated":
+			// valid
+		default:
+			return nil, fmt.Errorf("belief[%d]: invalid claim_type %q", i, b.ClaimType)
+		}
+	}
+
+	// Defense-in-depth: validate edge kind values before INSERT.
+	for i, edge := range pkt.Edges {
+		if edge.Kind != packetv1.EdgeDerives && edge.Kind != packetv1.EdgeContradicts {
+			return nil, fmt.Errorf("edge[%d]: invalid kind %q", i, edge.Kind)
+		}
+	}
+
+	// 0. Persist packet submission provenance FIRST (FK dependency).
+	// origin_packet_id on belief/evidence/task/edge_provenance references this row.
+	// TaskRef handling: empty → NULL, valid UUID → store, invalid UUID → reject.
+	var taskRef sql.NullString
+	if pkt.TaskRef != "" {
+		if _, err := uuid.Parse(pkt.TaskRef); err != nil {
+			return nil, fmt.Errorf("invalid task_ref: %w", err)
+		}
+		taskRef = sql.NullString{String: pkt.TaskRef, Valid: true}
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO packet_submission
+			 (packet_id, scenario_id, task_id, agent_id, role, harness, model, content_sha256)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 ON CONFLICT (packet_id) DO NOTHING`,
+		pkt.PacketID, pkt.ScenarioID, taskRef,
+		pkt.Agent.ID, pkt.Agent.Role, pkt.Agent.Harness, pkt.Agent.Model, hash); err != nil {
+		return nil, fmt.Errorf("insert packet submission: %w", err)
+	}
+
 	// 1. Persist beliefs with deterministic IDs.
 	for _, b := range pkt.Beliefs {
 		debt := b.Debt
@@ -356,10 +437,10 @@ func (a *App) Persist(ctx context.Context, tx TxExecutor, pkt *packetv1.Packet) 
 		}
 		beliefID := EntityID(pkt.ScenarioID, "belief", b.Claim)
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO belief (id, scenario_id, claim, claim_type, debt)
-			 VALUES ($1::UUID, $2::UUID, $3, $4, $5)
+			`INSERT INTO belief (id, scenario_id, claim, claim_type, debt, origin_packet_id)
+			 VALUES ($1::UUID, $2::UUID, $3, $4, $5, $6)
 			 ON CONFLICT (id) DO NOTHING`,
-			beliefID, pkt.ScenarioID, b.Claim, b.ClaimType, debt)
+			beliefID, pkt.ScenarioID, b.Claim, b.ClaimType, debt, pkt.PacketID)
 		if err != nil {
 			return nil, fmt.Errorf("insert belief: %w", err)
 		}
@@ -382,10 +463,10 @@ func (a *App) Persist(ctx context.Context, tx TxExecutor, pkt *packetv1.Packet) 
 		}
 		evidenceID := EntityID(pkt.ScenarioID, "evidence", e.ContentSHA256)
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO evidence (id, scenario_id, belief_id, provenance_class, source_url, content_sha256)
-			 VALUES ($1::UUID, $2::UUID, $3::UUID, $4, $5, $6)
+			`INSERT INTO evidence (id, scenario_id, belief_id, provenance_class, source_url, content_sha256, origin_packet_id)
+			 VALUES ($1::UUID, $2::UUID, $3::UUID, $4, $5, $6, $7)
 			 ON CONFLICT (id) DO NOTHING`,
-			evidenceID, pkt.ScenarioID, beliefID, e.ProvenanceClass, e.SourceURL, e.ContentSHA256)
+			evidenceID, pkt.ScenarioID, beliefID, e.ProvenanceClass, e.SourceURL, e.ContentSHA256, pkt.PacketID)
 		if err != nil {
 			return nil, fmt.Errorf("insert evidence: %w", err)
 		}
@@ -433,6 +514,18 @@ func (a *App) Persist(ctx context.Context, tx TxExecutor, pkt *packetv1.Packet) 
 		if fromID == "" || toID == "" {
 			return nil, fmt.Errorf("edge references unresolved: from=%s to=%s", edge.FromRef, edge.ToRef)
 		}
+		// Edge validation: no self-edges.
+		if fromID == toID {
+			return nil, fmt.Errorf("edge[%s]: self-edge not allowed (parent=child=%s)", edge.LocalID, fromID)
+		}
+		// Edge validation: contradicts must target canonical existing belief, not local.
+		if edge.Kind == packetv1.EdgeContradicts && strings.HasPrefix(edge.ToRef, packetv1.RefPrefixLocal) {
+			return nil, fmt.Errorf("edge[%s]: contradicts target must be a canonical existing belief, not local reference %s", edge.LocalID, edge.ToRef)
+		}
+		// Edge validation: all endpoints must belong to same scenario.
+		if err := a.validateEdgeScenario(ctx, tx, fromID, toID, pkt.ScenarioID); err != nil {
+			return nil, fmt.Errorf("edge[%s]: %w", edge.LocalID, err)
+		}
 		result2, err := tx.ExecContext(ctx,
 			`INSERT INTO belief_edge (parent_id, child_id, kind)
 			 VALUES ($1::UUID, $2::UUID, $3)
@@ -458,18 +551,41 @@ func (a *App) Persist(ctx context.Context, tx TxExecutor, pkt *packetv1.Packet) 
 					fromID, toID, existingKind, edge.Kind)
 			}
 		}
+		// Record edge provenance.
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO edge_provenance (parent_id, child_id, origin_packet_id)
+			 VALUES ($1::UUID, $2::UUID, $3)
+			 ON CONFLICT (parent_id, child_id) DO NOTHING`,
+			fromID, toID, pkt.PacketID)
+		if err != nil {
+			return nil, fmt.Errorf("insert edge provenance: %w", err)
+		}
 		result.EdgeCount++
 	}
 
 	// 4. Persist tasks.
+	// Task integrity preflight: verify conductor_project exists for this scenario.
+	if len(pkt.Tasks) > 0 {
+		var projectExists bool
+		err := tx.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM conductor_project WHERE id = $1::UUID)`,
+			pkt.ScenarioID,
+		).Scan(&projectExists)
+		if err != nil {
+			return nil, fmt.Errorf("verify project for scenario: %w", err)
+		}
+		if !projectExists {
+			return nil, fmt.Errorf("cannot create tasks: project %s does not exist", pkt.ScenarioID)
+		}
+	}
 	for _, t := range pkt.Tasks {
 		taskID := EntityID(pkt.ScenarioID, "task", t.Title)
 		governanceRef := t.GovernanceRef
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO conductor_task (id, project_id, title, description, status, priority, governance_ref, created_at, updated_at)
-			 VALUES ($1, '', $2, $3, 'proposed', 'medium', $4, now(), now())
+			`INSERT INTO conductor_task (id, project_id, title, description, status, priority, governance_ref, origin_packet_id, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, 'proposed', 'medium', $5, $6, now(), now())
 			 ON CONFLICT (id) DO NOTHING`,
-			taskID, t.Title, t.Description, governanceRef)
+			taskID, pkt.ScenarioID, t.Title, t.Description, governanceRef, pkt.PacketID)
 		if err != nil {
 			return nil, fmt.Errorf("insert task: %w", err)
 		}
@@ -484,26 +600,6 @@ func (a *App) Persist(ctx context.Context, tx TxExecutor, pkt *packetv1.Packet) 
 		hash, pkt.ScenarioID, pkt.PacketID)
 	if err != nil {
 		return nil, fmt.Errorf("insert idempotency: %w", err)
-	}
-
-	// 6. Persist packet submission provenance (agent identity).
-	// TaskRef handling: empty → NULL, valid UUID → store, invalid UUID → reject.
-	var taskRef sql.NullString
-	if pkt.TaskRef != "" {
-		if _, err := uuid.Parse(pkt.TaskRef); err != nil {
-			return nil, fmt.Errorf("invalid task_ref: %w", err)
-		}
-		taskRef = sql.NullString{String: pkt.TaskRef, Valid: true}
-	}
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO packet_submission
-			 (packet_id, scenario_id, task_id, agent_id, role, harness, model, content_sha256)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		 ON CONFLICT (packet_id) DO NOTHING`,
-		pkt.PacketID, pkt.ScenarioID, taskRef,
-		pkt.Agent.ID, pkt.Agent.Role, pkt.Agent.Harness, pkt.Agent.Model, hash)
-	if err != nil {
-		return nil, fmt.Errorf("insert packet submission: %w", err)
 	}
 
 	return result, nil
@@ -734,6 +830,25 @@ func buildInstrumentRef(evidenceIDs []string) string {
 		ref += id
 	}
 	return ref
+}
+
+// validateEdgeScenario checks that both edge endpoints belong to the same scenario.
+func (a *App) validateEdgeScenario(ctx context.Context, tx TxExecutor, fromID, toID, scenarioID string) error {
+	var fromScenario, toScenario string
+	err := tx.QueryRowContext(ctx,
+		`SELECT scenario_id FROM belief WHERE id = $1::UUID`, fromID).Scan(&fromScenario)
+	if err != nil {
+		return fmt.Errorf("from-belief %s not found: %w", fromID, err)
+	}
+	err = tx.QueryRowContext(ctx,
+		`SELECT scenario_id FROM belief WHERE id = $1::UUID`, toID).Scan(&toScenario)
+	if err != nil {
+		return fmt.Errorf("to-belief %s not found: %w", toID, err)
+	}
+	if !strings.EqualFold(fromScenario, scenarioID) || !strings.EqualFold(toScenario, scenarioID) {
+		return fmt.Errorf("edge endpoints must belong to packet scenario %s, got from=%s to=%s", scenarioID, fromScenario, toScenario)
+	}
+	return nil
 }
 
 func resolveRef(ref string, idMap map[string]string) string {

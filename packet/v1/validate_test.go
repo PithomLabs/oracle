@@ -31,7 +31,7 @@ func validPacket() *Packet {
 		SchemaVersion: SchemaVersion,
 		Role:          RoleWork,
 		PacketID:      "test-packet-001",
-		PackRef:       "bmist-1.0.0",
+		PackRef:       "bmist@1.0.0",
 		Agent:         Agent{ID: "test-agent", Role: RoleWork, Harness: "test", Model: "test-model"},
 		Beliefs: []Belief{
 			{LocalID: "b1", Claim: "Fisher-rigidity holds for 2D", ClaimType: "derived", Debt: []string{"needMap"}},
@@ -93,7 +93,7 @@ func TestValidateBadRole(t *testing.T) {
 func TestValidateBadPackRef(t *testing.T) {
 	registry := newTestRegistry(t)
 	pkt := validPacket()
-	pkt.PackRef = "nonexistent-1.0.0"
+	pkt.PackRef = "nonexistent@1.0.0"
 	if err := Validate(pkt, registry); err == nil {
 		t.Error("bad pack_ref accepted")
 	}
@@ -233,5 +233,69 @@ func TestValidateAgentRoleMismatch(t *testing.T) {
 	pkt.Agent.Role = RoleAdversarial
 	if err := Validate(pkt, registry); err == nil {
 		t.Error("agent.role != packet.role accepted")
+	}
+}
+
+func TestValidateCrossTypeLocalIDCollision(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	// Add evidence with same local_id as a belief
+	pkt.Evidence = append(pkt.Evidence, Evidence{
+		LocalID:          "b1",
+		BeliefRef:        "local:b1",
+		ProvenanceClass:  "reproducible_artifact",
+		ContentSHA256:    "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+	})
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("cross-type local_id collision accepted")
+	}
+}
+
+func TestValidateInvalidClaimType(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Beliefs[0].ClaimType = "pizza"
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("invalid claim_type accepted")
+	}
+}
+
+func TestValidateDuplicateEvidenceLocalID(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Evidence = append(pkt.Evidence, Evidence{
+		LocalID:          "e1",
+		BeliefRef:        "local:b1",
+		ProvenanceClass:  "reproducible_artifact",
+		ContentSHA256:    "b1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+	})
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("duplicate evidence local_id accepted")
+	}
+}
+
+func TestValidateDuplicateEdgeLocalID(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Edges = append(pkt.Edges, Edge{
+		LocalID: "edge1",
+		FromRef: "local:b1",
+		ToRef:   "local:b1",
+		Kind:    EdgeDerives,
+	})
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("duplicate edge local_id accepted")
+	}
+}
+
+func TestValidateDuplicateTaskLocalID(t *testing.T) {
+	registry := newTestRegistry(t)
+	pkt := validPacket()
+	pkt.Tasks = append(pkt.Tasks, Task{
+		LocalID: "t1",
+		Title:   "Duplicate task",
+	})
+	if err := Validate(pkt, registry); err == nil {
+		t.Error("duplicate task local_id accepted")
 	}
 }

@@ -31,7 +31,7 @@
     },
     "pack_ref": {
       "type": "string",
-      "description": "Pack reference in format 'pack_id-version'"
+      "description": "Pack reference in format 'pack_id@version'"
     },
     "scenario_id": {
       "type": "string"
@@ -103,7 +103,8 @@
             "minLength": 1
           },
           "claim_type": {
-            "type": "string"
+            "type": "string",
+            "enum": ["derived", "accommodated", "postulated"]
           },
           "debt": {
             "type": "array",
